@@ -1,0 +1,56 @@
+{
+  "name": "scheduleai-backend",
+  "version": "1.0.0",
+  "description": "ScheduleAI — AI Schedule Scanner & Planner backend API",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "start:prod": "prisma migrate deploy && node dist/server.js",
+    "postinstall": "prisma generate",
+    "db:start": "tsx scripts/dev-db.ts start",
+    "db:stop": "tsx scripts/dev-db.ts stop",
+    "db:reset": "tsx scripts/dev-db.ts reset",
+    "smoke": "bash scripts/smoke.sh"
+  },
+  "dependencies": {
+    "@google/genai": "^2.30.0",
+    "@prisma/adapter-pg": "^7.0.0",
+    "@prisma/client": "^7.0.0",
+    "bcryptjs": "^3.0.0",
+    "cookie-parser": "^1.4.0",
+    "cors": "^2.8.0",
+    "dotenv": "^17.0.0",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.0.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^2.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.0.0",
+    "embedded-postgres": "17.10.0-beta.17",
+    "prisma": "^7.0.0",
+    "sharp": "^0.34.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "prisma@7.10.1": true,
+    "sharp@0.34.5": true,
+    "@embedded-postgres/linux-x64@17.10.0-beta.17": true,
+    "@prisma/engines@7.10.1": true
+  }
+}
