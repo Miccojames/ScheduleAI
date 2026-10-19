@@ -58,6 +58,27 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return;
   }
 
+  // Body-parser JSON syntax error (malformed request body) → 400, not 500.
+  if (
+    err instanceof SyntaxError &&
+    "type" in err &&
+    (err as SyntaxError & { type?: string }).type === "entity.parse.failed"
+  ) {
+    sendError(res, { status: 400, message: "Request body is not valid JSON." });
+    return;
+  }
+
+  // Body-parser payload-too-large (non-file JSON body). body-parser throws a
+  // http-errors PayloadTooLargeError (not a SyntaxError), so match on .type.
+  if (
+    err instanceof Error &&
+    "type" in err &&
+    (err as Error & { type?: string }).type === "entity.too.large"
+  ) {
+    sendError(res, { status: 413, message: "Request body is too large." });
+    return;
+  }
+
   if (err instanceof ZodError) {
     // Should be handled by validate.middleware, but keep a safe fallback.
     sendError(res, { status: 400, message: "Invalid request data." });

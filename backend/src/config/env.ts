@@ -39,6 +39,16 @@ const envSchema = z
     UPLOAD_DIR: z.string().min(1).default("./uploads"),
   })
   .superRefine((env, ctx) => {
+    // GEMINI_MODEL must be a plain model id (e.g. "gemini-3.8-flash").
+    // Catches copy-paste typos like "GEMINI_MODEL=gemini-3.8-flash" at boot
+    // with a clear message, instead of a confusing 502 on every upload.
+    if (!/^gemini-[a-z0-9.-]+$/i.test(env.GEMINI_MODEL)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["GEMINI_MODEL"],
+        message: `GEMINI_MODEL must look like "gemini-3.8-flash" (got "${env.GEMINI_MODEL}") — remove any duplicated "GEMINI_MODEL=" prefix or trailing spaces.`,
+      });
+    }
     // In production, JWT_SECRET must not be the example value.
     if (env.NODE_ENV === "production" && env.JWT_SECRET === "change-me-in-production") {
       ctx.addIssue({

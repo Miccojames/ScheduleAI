@@ -256,15 +256,15 @@ MAGIC=$(python3 -c "print(open('$TMPDIR_SMOKE/img.png','rb').read(4).hex())" 2>/
 HTTP=$(curl -s -b "$JAR_B" -o /dev/null -w "%{http_code}" "$BASE_URL$UP_URL")
 [ "$HTTP" = "404" ] && check "user B GET A's image → 404" 0 || check "user B GET A's image → 404 (got $HTTP)" 1
 
-# Process with the AI (mock — no API key) → COMPLETED + provider mock + 3 entries
+# Process with the AI (mock when no key set, gemini when GEMINI_API_KEY set)
 HTTP=$(curl -s -b "$JAR_A" -o "$TMPDIR_SMOKE/proc.json" -w "%{http_code}" \
   -X POST "$BASE_URL/api/schedule-upload/$UP_ID/process")
 PROVIDER=$(json_get "$TMPDIR_SMOKE/proc.json" "d['data'].get('provider')")
 PSTATUS=$(json_get "$TMPDIR_SMOKE/proc.json" "d['data']['upload']['status']")
 NDETECT=$(json_get "$TMPDIR_SMOKE/proc.json" "len(d['data']['entries'])")
-[ "$HTTP" = "200" ] && [ "$PSTATUS" = "COMPLETED" ] && [ "$PROVIDER" = "mock" ] && [ "$NDETECT" -ge 3 ] \
-  && check "POST /process → 200 + COMPLETED + provider mock + ≥3 detected entries" 0 \
-  || check "POST /process → 200 + COMPLETED + mock + ≥3 entries (got $HTTP, status=$PSTATUS, provider=$PROVIDER, entries=$NDETECT)" 1
+[ "$HTTP" = "200" ] && [ "$PSTATUS" = "COMPLETED" ] && { [ "$PROVIDER" = "mock" ] || [ "$PROVIDER" = "gemini" ]; } && [ "$NDETECT" -ge 3 ] \
+  && check "POST /process → 200 + COMPLETED + provider (mock|gemini) + ≥3 detected entries" 0 \
+  || check "POST /process → 200 + COMPLETED + mock|gemini + ≥3 entries (got $HTTP, status=$PSTATUS, provider=$PROVIDER, entries=$NDETECT)" 1
 
 # ---------------------------------------------------------------------------
 echo ""
