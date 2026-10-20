@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { CalendarCheck } from "lucide-react";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
-import { ThemeToggle } from "@/components/layout/Sidebar";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { pageTitleForPath } from "@/lib/navigation";
 
 /** Top bar shown on phones: page title, theme switch and the user's initials. */

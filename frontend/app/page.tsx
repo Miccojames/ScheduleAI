@@ -9,6 +9,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "cn";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "ScheduleAI — Your whole week, planned in one place",
@@ -93,12 +94,15 @@ export default function LandingPage() {
               ScheduleAI
             </span>
           </Link>
-          <Link
-            href="/login"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Sign in
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <Link
+              href="/login"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Sign in
+            </Link>
+          </div>
         </header>
 
         <main className="flex flex-1 flex-col justify-center py-10 sm:py-16">
