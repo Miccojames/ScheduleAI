@@ -5,6 +5,7 @@ import { AlertTriangle, Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   useNotificationPrefs,
   useSubscribePush,
@@ -33,6 +34,7 @@ export function NotificationsCard() {
 
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   // Already-subscribed browsers show as enabled on load (permission granted +
   // an active push subscription for this origin).
@@ -137,6 +139,24 @@ export function NotificationsCard() {
     }
   }
 
+  /** Fire a test push right now so the user can confirm reminders work. */
+  async function sendTest() {
+    if (testing) return;
+    setTesting(true);
+    try {
+      const result = await notificationsApi.test();
+      toast.success(
+        result.delivered > 0
+          ? "Test notification sent — check your device."
+          : "Test notification sent, but no browser picked it up.",
+      );
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "We couldn't send the test notification."));
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
     <Card className="rounded-2xl border-gray-200 shadow-sm">
       <CardHeader>
@@ -206,6 +226,24 @@ export function NotificationsCard() {
             ? "This browser doesn't support notifications."
             : "Your browser will ask for permission the first time you turn this on."}
         </p>
+
+        {enabled ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void sendTest()}
+            disabled={testing}
+            className="w-full"
+          >
+            {testing ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <Bell className="size-3.5" aria-hidden="true" />
+            )}
+            Send a test notification
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );

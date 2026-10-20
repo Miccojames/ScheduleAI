@@ -28,6 +28,33 @@ export interface NotificationPrefs {
   vapidConfigured: boolean;
 }
 
+/** Every browser this user subscribed (for the test-notification action). */
+export async function listSubscriptions(
+  userId: string,
+): Promise<{ endpoint: string; p256dh: string; auth: string }[]> {
+  return prisma.pushSubscription.findMany({
+    where: { userId },
+    select: { endpoint: true, p256dh: true, auth: true },
+  });
+}
+
+/**
+ * Fire a one-off "reminders are working" push. It never touches
+ * NotificationLog — a test must not consume one of the user's real reminder
+ * slots for the day.
+ */
+export async function sendTestPush(subscription: {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}): Promise<boolean> {
+  return sendToSubscription(subscription, {
+    title: "ScheduleAI reminders are on",
+    body: "This is a test notification — you'll get one before each of your classes.",
+    data: { entryId: "test", subject: "Test notification" },
+  });
+}
+
 /**
  * Upsert on `endpoint` (endpoint is globally unique). If the endpoint already
  * belongs to another user it is re-owned — it is literally the same browser,

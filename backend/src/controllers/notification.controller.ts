@@ -45,3 +45,43 @@ export const updatePrefs = asyncHandler(async (req: Request, res: Response) => {
   const prefs = await notificationService.updatePrefs(req.user!.id, req.body as UpdatePrefsInput);
   sendSuccess(res, { data: prefs, message: "Notification preferences updated." });
 });
+
+/**
+ * POST /api/notifications/test — send a test push to every browser this user
+ * subscribed, so they can confirm reminders work without waiting for a class.
+ * Creates NO reminder log rows (a test must not consume a reminder slot).
+ */
+export const sendTestNotification = asyncHandler(async (req: Request, res: Response) => {
+  if (!isConfigured()) {
+    sendError(res, { status: 503, message: "Push notifications are not configured." });
+    return;
+  }
+
+  const subscriptions = await notificationService.listSubscriptions(req.user!.id);
+  if (subscriptions.length === 0) {
+    sendError(res, {
+      status: 400,
+      message: "Enable notifications for this browser first, then try again.",
+    });
+    return;
+  }
+
+  let delivered = 0;
+  for (const subscription of subscriptions) {
+    const ok = await notificationService.sendTestPush(subscription);
+    if (ok) delivered += 1;
+  }
+
+  if (delivered === 0) {
+    sendError(res, {
+      status: 502,
+      message: "We couldn't deliver the test notification. Try re-enabling notifications.",
+    });
+    return;
+  }
+
+  sendSuccess(res, {
+    data: { delivered, sent: subscriptions.length },
+    message: "Test notification sent — check your device.",
+  });
+});

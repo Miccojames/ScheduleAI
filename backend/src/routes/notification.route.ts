@@ -43,5 +43,6 @@ router.post("/subscribe", validate(subscribeSchema), notificationController.subs
 router.delete("/subscribe", validate(unsubscribeSchema), notificationController.unsubscribe);
 router.get("/prefs", notificationController.getPrefs);
 router.put("/prefs", validate(prefsSchema), notificationController.updatePrefs);
+router.post("/test", notificationController.sendTestNotification);
 
 export default router;

@@ -56,4 +56,11 @@ export const notificationsApi = {
       body: input,
     });
   },
+
+  /** POST /api/notifications/test — immediate push to this user's browsers. */
+  test() {
+    return api<{ delivered: number; sent: number }>("/api/notifications/test", {
+      method: "POST",
+    });
+  },
 };
