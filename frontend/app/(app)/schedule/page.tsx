@@ -20,6 +20,7 @@ import {
 import { WeeklyCalendar } from "@/components/schedule/WeeklyCalendar";
 import { useActiveSchedule } from "@/hooks/useSchedules";
 import { useScheduleEntries } from "@/hooks/useEntries";
+import { useMoveEntry } from "@/hooks/useMoveEntry";
 import { ENTRY_KINDS, KIND_META, kindOf } from "@/lib/kind";
 import type { EntryKind } from "@/lib/kind";
 import { apiErrorMessage } from "@/services/api";
@@ -59,6 +60,8 @@ function ScheduleContent() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addDay, setAddDay] = useState<DayOfWeek | undefined>(undefined);
+  /** Drag-to-reschedule on the desktop week grid. */
+  const moveEntry = useMoveEntry();
   /** Local event-type filter — chips above the toolbar drive this. */
   const [kindFilter, setKindFilter] = useState<KindFilter>("ALL");
   /** Desktop weekly grid — captured by "Save image" in the toolbar. */
@@ -255,6 +258,7 @@ function ScheduleContent() {
                   setAddDay(day);
                   setAddOpen(true);
                 }}
+                onMoveEntry={(entry, target) => moveEntry.mutate({ entry, target })}
               />
             </div>
 

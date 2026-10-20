@@ -11,6 +11,12 @@ interface ScheduleBlockProps {
   layout: DayLayout;
   hasConflict: boolean;
   onSelect: (entry: Entry) => void;
+  /** Makes the block draggable (desktop HTML5 drag-and-drop). */
+  draggable?: boolean;
+  /** True while THIS block is being dragged (dims it). */
+  isDragging?: boolean;
+  onDragStartEntry?: (entry: Entry) => void;
+  onDragEndEntry?: () => void;
 }
 
 /**
@@ -18,7 +24,15 @@ interface ScheduleBlockProps {
  * drives a soft tint, a solid left edge and two shades of "ink" for the text,
  * so every palette colour stays readable on its own tint in both themes.
  */
-export function ScheduleBlock({ layout, hasConflict, onSelect }: ScheduleBlockProps) {
+export function ScheduleBlock({
+  layout,
+  hasConflict,
+  onSelect,
+  draggable,
+  isDragging,
+  onDragStartEntry,
+  onDragEndEntry,
+}: ScheduleBlockProps) {
   const { entry, topPercent, heightPercent, leftPercent, widthPercent, compact } = layout;
   const timeRange = formatTimeRange(entry.startTime, entry.endTime);
   const detail = entry.room ?? entry.instructor;
@@ -26,17 +40,35 @@ export function ScheduleBlock({ layout, hasConflict, onSelect }: ScheduleBlockPr
   return (
     <button
       type="button"
+      draggable={draggable}
+      onDragStart={(event) => {
+        if (!draggable || !onDragStartEntry) {
+          event.preventDefault();
+          return;
+        }
+        // Firefox refuses to start a drag without payload data.
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", entry.id);
+        onDragStartEntry(entry);
+      }}
+      onDragEnd={() => onDragEndEntry?.()}
       onClick={() => onSelect(entry)}
-      title={`${entry.subject} · ${timeRange}`}
-      aria-label={`${entry.subject}, ${timeRange}${entry.room ? `, ${entry.room}` : ""}${hasConflict ? ", scheduling conflict" : ""}`}
+      title={
+        draggable
+          ? `${entry.subject} · ${timeRange} — drag to reschedule`
+          : `${entry.subject} · ${timeRange}`
+      }
+      aria-label={`${entry.subject}, ${timeRange}${entry.room ? `, ${entry.room}` : ""}${hasConflict ? ", scheduling conflict" : ""}${draggable ? ". Drag to reschedule." : ""}`}
       className={cn(
         "entry-surface group absolute z-10 overflow-hidden rounded-lg border border-l-[3px] px-1.5 py-1 text-left",
-        "shadow-xs transition-[transform,box-shadow] duration-150 ease-out will-change-transform",
+        "shadow-xs transition-[transform,box-shadow,opacity] duration-150 ease-out will-change-transform",
         "hover:z-20 hover:-translate-y-px hover:shadow-lg hover:shadow-foreground/10",
         "active:translate-y-0 active:scale-[0.985]",
         "focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card",
         hasConflict && "entry-conflict",
         compact ? "min-h-8" : "",
+        draggable && "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-40",
       )}
       style={
         {
