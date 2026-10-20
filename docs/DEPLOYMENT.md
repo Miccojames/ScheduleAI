@@ -124,6 +124,19 @@ Open your Vercel URL and run through:
 4. **Export**: try the `.ics` download and the *Google Calendar* button.
 5. **Reminders**: Settings → *Notifications* → turn on → *Send a test notification*.
 
+### Or run the automated contract test against production
+
+The same suite used in development works against the deployed API:
+
+```bash
+cd backend
+npm run smoke -- https://scheduleai-api.onrender.com
+```
+
+It creates throwaway `smoke-*@example.com` accounts (delete them afterwards from
+the admin panel / database if you care). Expect `26 passed, 0 failed`.
+Note: the first request may take ~30 s while the free service wakes up.
+
 ---
 
 ## Free-tier caveats (and their workarounds)

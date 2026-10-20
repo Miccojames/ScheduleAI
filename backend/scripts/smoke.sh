@@ -264,10 +264,11 @@ PSTATUS=$(json_get "$TMPDIR_SMOKE/proc.json" "d['data']['upload']['status']")
   && check "POST /process → 202 + status PROCESSING (background kick)" 0 \
   || check "POST /process → 202 + PROCESSING (got $HTTP, status=$PSTATUS)" 1
 
-# Poll GET /:id until the background extraction finishes (≤240s; mock is fast,
-# gemini can take a while on the free tier).
+# Poll GET /:id until the background extraction finishes. The window is
+# 10 min — the server's own budget for one extraction is ~8 min worst case
+# (3 attempts × 120s + backoff) before it falls back to demo data.
 PSTATUS=""
-for _ in $(seq 1 120); do
+for _ in $(seq 1 300); do
   HTTP=$(curl -s -b "$JAR_A" -o "$TMPDIR_SMOKE/proc.json" -w "%{http_code}" \
     "$BASE_URL/api/schedule-upload/$UP_ID")
   PSTATUS=$(json_get "$TMPDIR_SMOKE/proc.json" "d['data']['upload']['status']")

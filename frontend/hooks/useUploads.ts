@@ -39,7 +39,9 @@ export function useDeleteUpload() {
 // polls GET /:id every 2s until the server flips the status to COMPLETED or
 // FAILED. The scan itself keeps running server-side even if this tab closes.
 const POLL_INTERVAL_MS = 2_000;
-const POLL_TIMEOUT_MS = 8 * 60 * 1000; // server budget is ~8 min worst case
+// The server's own extraction budget is 8 min worst case; wait a little
+// longer so the client never gives up before the server reports back.
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Poll an upload until its background extraction finishes (or time out). */
 export async function waitForUpload(uploadId: string) {
