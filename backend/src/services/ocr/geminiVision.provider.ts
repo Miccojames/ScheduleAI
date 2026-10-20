@@ -13,22 +13,24 @@ import {
 
 const TIMEOUT_MS = 120_000;
 
-// Retry policy: 2 attempts total with a ~3s pause. ONLY transient failures
-// are retried — 429 (quota), 503 (UNAVAILABLE demand spike),
+// Retry policy: up to 3 attempts with ~3s/~10s pauses. ONLY transient
+// failures are retried — 429 (quota), 503 (UNAVAILABLE demand spike),
 // 504/DEADLINE_EXCEEDED, and network/abort timeouts. Other 4xx are never
 // retried.
 // Per-attempt timeout is 120s because real schedule photos consistently need
-// >90s on this free-tier model (even a 1x1 PNG measured ~58s). Two 120s
-// attempts + backoff ≈ 243s worst case, safely under Node's default 300s
-// requestTimeout. The controller falls back to the mock provider when the
-// final failure is a timeout, so the user still gets a reviewable result.
-const MAX_ATTEMPTS = 2;
-const RETRY_DELAYS_MS = [3_000]; // after attempt 1
+// >90s on this free-tier model (even a 1x1 PNG measured ~58s). Since Phase 1
+// the extraction runs as a BACKGROUND job (no HTTP request waits on it),
+// patience is cheap: 3 × 120s attempts + backoff ≈ 6.5 min worst case,
+// bounded by PROCESS_BUDGET_MS. The controller falls back to the mock
+// provider when the final failure is quota/busy/timeout/malformed, so the
+// user still gets a reviewable result.
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [3_000, 10_000]; // after attempts 1 and 2
 
-// Whole-process budget: the initial call + a malformed-JSON retry call must
-// all finish inside Node's default 300s server requestTimeout, so every
-// attempt's abort deadline is clipped to what remains of this budget.
-const PROCESS_BUDGET_MS = 280_000;
+// Whole-process budget for one extraction (initial call + a malformed-JSON
+// retry call). Nothing HTTP-bound waits on this anymore, but a loose cap
+// keeps a pathological run from spinning forever.
+const PROCESS_BUDGET_MS = 480_000;
 /** Never START a malformed-retry fresh call with less time than this left. */
 const MIN_FRESH_CALL_MS = 20_000;
 /** Never start a call attempt with less time than this left. */

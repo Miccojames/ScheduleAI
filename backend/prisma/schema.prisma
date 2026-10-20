@@ -141,6 +141,10 @@ model UploadedSchedule {
   fileName        String
   fileSize        Int
   processingStatus ProcessingStatus @default(PENDING)
+  /// Extraction outcome for background processing: { entries: [...], fallback: boolean }
+  result          Json?
+  /// Which provider produced `result` ("gemini" | "mock").
+  provider        String?
   error           String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt

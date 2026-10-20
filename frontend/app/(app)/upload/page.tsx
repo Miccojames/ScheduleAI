@@ -10,6 +10,7 @@ import { ProcessingSteps } from "@/components/upload/ProcessingSteps";
 import { UploadDropzone } from "@/components/upload/UploadDropzone";
 import { useProcessUpload } from "@/hooks/useProcessUpload";
 import { useUploadSchedule } from "@/hooks/useUploadSchedule";
+import { waitForUpload } from "@/hooks/useUploads";
 import { ApiError } from "@/services/api";
 import { useReviewStore } from "@/stores/reviewStore";
 
@@ -35,18 +36,29 @@ export default function UploadPage() {
       const uploadResult = await upload.mutateAsync(file);
 
       setStage("processing");
-      const result = await process.mutateAsync(uploadResult.upload.id);
+      const uploadId = uploadResult.upload.id;
+      // Kick the background scan (202 — returns instantly), then poll until
+      // the server finishes. The scan keeps running even if this tab closes;
+      // the Uploads page shows its progress either way.
+      await process.mutateAsync(uploadId);
+      const status = await waitForUpload(uploadId);
 
-      if (result.entries.length === 0) {
+      if (status.upload.status === "FAILED") {
+        setFailureMessage(status.upload.error ?? null);
+        setStage("error");
+        return;
+      }
+
+      if (status.entries.length === 0) {
         setStage("empty");
         return;
       }
 
       setReview({
-        detected: result.entries,
-        uploadId: uploadResult.upload.id,
-        provider: result.provider,
-        imageUrl: uploadResult.upload.imageUrl ?? null,
+        detected: status.entries,
+        uploadId,
+        provider: status.provider ?? "mock",
+        imageUrl: status.upload.imageUrl ?? null,
       });
       router.push("/upload/review");
     } catch (error) {
@@ -79,7 +91,8 @@ export default function UploadPage() {
           <>
             <ProcessingSteps completedSteps={stage === "uploading" ? 1 : 3} />
             <p className="text-center text-xs text-gray-500">
-              This usually takes a few seconds. Keep this tab open.
+              Scanning usually takes about a minute. The scan keeps running even if you
+              leave this page — you&apos;ll find it under Uploads.
             </p>
           </>
         ) : null}

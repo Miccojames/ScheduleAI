@@ -5,9 +5,17 @@ const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 
 export type ExtractionProvider = "gemini" | "mock";
 
-export interface ProcessUploadResponse {
+/** POST /:id/process now returns 202 immediately — the scan runs in the background. */
+export interface ProcessAcceptedResponse {
   upload: Upload;
-  provider: ExtractionProvider;
+  message?: string;
+}
+
+/** GET /:id — the poll target: status, and once COMPLETED the extraction result. */
+export interface UploadStatusResponse {
+  upload: Upload & { error?: string | null };
+  provider: ExtractionProvider | null;
+  fallback: boolean;
   entries: DetectedEntry[];
   message?: string;
 }
@@ -23,10 +31,16 @@ export const uploadApi = {
     });
   },
 
+  /** Kicks the background scan; poll `get()` until COMPLETED/FAILED. */
   process(uploadId: string) {
-    return api<ProcessUploadResponse>(`/api/schedule-upload/${uploadId}/process`, {
+    return api<ProcessAcceptedResponse>(`/api/schedule-upload/${uploadId}/process`, {
       method: "POST",
     });
+  },
+
+  /** Status + (when COMPLETED) the persisted extraction result. */
+  get(uploadId: string) {
+    return api<UploadStatusResponse>(`/api/schedule-upload/${uploadId}`);
   },
 
   /** The user's upload history, newest first. */

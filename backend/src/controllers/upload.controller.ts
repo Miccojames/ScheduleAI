@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { param } from "../utils/params.js";
 import { NotFoundError, UnprocessableEntityError } from "../utils/errors.js";
 import { prisma } from "../config/prisma.js";
+import { Prisma } from "../generated/prisma/client.js";
 import { allowMockFallback } from "../config/env.js";
 import { uploadRoot } from "../middleware/upload.middleware.js";
 import { getAnalyzer, AiProviderError } from "../services/ai.service.js";
@@ -141,18 +142,94 @@ export const serveImage = asyncHandler(async (req: Request, res: Response) => {
   fs.createReadStream(resolved).pipe(res);
 });
 
-// POST /api/schedule-upload/:id/process — run OCR on a previously uploaded image.
+// Upload ids whose background extraction is currently running IN THIS
+// PROCESS. Guards against double-kicks racing on the same row (the DB
+// PROCESSING status alone can't see "am I the one running it?").
+const inFlight = new Set<string>();
+
+// POST /api/schedule-upload/:id/process — kicks a BACKGROUND extraction and
+// returns 202 immediately. The client polls GET /:id until the status is
+// COMPLETED/FAILED. This keeps slow AI calls (free-tier Gemini can take
+// 1–4 minutes) off the request path: no HTTP timeouts, and the user can even
+// close the tab — the scan finishes server-side either way.
 export const processUpload = asyncHandler(async (req: Request, res: Response) => {
   const record = await prisma.uploadedSchedule.findFirst({
     where: { id: param(req, "id"), userId: req.user!.id },
   });
   if (!record) throw new NotFoundError("Upload not found.");
 
-  await prisma.uploadedSchedule.update({
+  // Idempotent-ish: if a run for this upload is already in flight, don't
+  // start a second one — acknowledge and let the client keep polling.
+  if (record.processingStatus === "PROCESSING" && inFlight.has(record.id)) {
+    sendSuccess(res, {
+      status: 202,
+      data: { upload: serializeUpload(record) },
+      message: "Already scanning — this can take a minute or two.",
+    });
+    return;
+  }
+
+  const updated = await prisma.uploadedSchedule.update({
     where: { id: record.id },
-    data: { processingStatus: "PROCESSING", error: null },
+    data: {
+      processingStatus: "PROCESSING",
+      error: null,
+      result: Prisma.DbNull,
+      provider: null,
+    },
   });
 
+  inFlight.add(updated.id);
+  void runExtraction(updated).finally(() => inFlight.delete(updated.id));
+
+  sendSuccess(res, {
+    status: 202,
+    data: { upload: serializeUpload(updated) },
+    message: "Scan started. Poll GET /api/schedule-upload/:id for the result.",
+  });
+});
+
+// GET /api/schedule-upload/:id — status + (when COMPLETED) the persisted
+// extraction result. This is what the frontend polls after the 202 kick.
+export const getUpload = asyncHandler(async (req: Request, res: Response) => {
+  const record = await prisma.uploadedSchedule.findFirst({
+    where: { id: param(req, "id"), userId: req.user!.id },
+  });
+  if (!record) throw new NotFoundError("Upload not found.");
+
+  const stored = record.result as { entries?: unknown[]; fallback?: boolean } | null;
+  const completed = record.processingStatus === "COMPLETED";
+  const entries = completed && Array.isArray(stored?.entries) ? stored!.entries : [];
+
+  sendSuccess(res, {
+    data: {
+      upload: {
+        ...serializeUpload(record),
+        // `error` holds the SAFE client-facing message (the internal detail
+        // lives in the server logs), so the UI can show it directly.
+        error: record.error,
+      },
+      provider: completed ? ((record.provider as ProviderName) ?? "gemini") : null,
+      fallback: completed ? (stored?.fallback ?? false) : false,
+      entries,
+      ...(entries.length === 0 && completed
+        ? { message: "No classes were detected in this image." }
+        : {}),
+    },
+  });
+});
+
+/**
+ * The actual extraction work, run detached from any HTTP request. Writes
+ * COMPLETED (+ result JSON + provider) or FAILED (+ safe error message) to
+ * the row; the poller picks it up from there. The mock fallback logic is
+ * unchanged (quota/busy/timeout/malformed → per-request demo data, gated by
+ * allowMockFallback).
+ */
+async function runExtraction(record: {
+  id: string;
+  imagePath: string;
+}): Promise<void> {
   const analyzeInput = {
     filePath: record.imagePath,
     mimeType: sniffMimeFromPath(record.imagePath) ?? "image/png",
@@ -161,28 +238,28 @@ export const processUpload = asyncHandler(async (req: Request, res: Response) =>
   try {
     const analyzer = getAnalyzer();
     const result = await analyzer.analyze(analyzeInput);
-    // Pure transformation — no DB writes in the AI path.
-    const entries = parseAnalyzeResult(result);
+    const entries = parseAnalyzeResult(result); // pure transformation
 
     await prisma.uploadedSchedule.update({
       where: { id: record.id },
-      data: { processingStatus: "COMPLETED", error: null },
+      data: {
+        processingStatus: "COMPLETED",
+        error: null,
+        provider: analyzer.name,
+        // Cast: DetectedEntry is structurally JSON-safe (strings/numbers/
+        // nulls) but TS interfaces don't satisfy Prisma's InputJsonValue
+        // index-signature requirement without it.
+        result: { entries, fallback: false } as unknown as Prisma.InputJsonValue,
+      },
     });
-
-    sendCompleted(res, record, entries, analyzer.name, false);
+    console.log(
+      `[extract] upload=${record.id} completed provider=${analyzer.name} entries=${entries.length}`,
+    );
+    return;
   } catch (err) {
-    // Transient upstream failure (quota exhausted, demand-spike 503, or a
-    // slow/timed-out model call) → fall back to the deterministic mock for
-    // THIS request only (the cached gemini analyzer in ai.service.ts is never
-    // mutated), so the user always gets a reviewable result instead of a hard
-    // 502 — but only when the mock fallback is allowed (allowMockFallback;
-    // disabled in production unless AI_ALLOW_MOCK_FALLBACK=true). When it is
-    // NOT allowed we skip the mock entirely and fall through to the honest
-    // 502 below. The response carries provider:"mock" + fallback:true and the
-    // review screen labels the data accordingly. Genuine config errors
-    // (code "provider": 400/401/404…) are NOT masked this way. "malformed"
-    // = model output unparseable even after a retry + salvage — also a
-    // transient upstream quality issue, so it falls back too.
+    // Transient upstream failure (quota exhausted, demand-spike 503/504, or
+    // malformed/truncated output) → per-request demo fallback, gated by
+    // allowMockFallback (dev: on; prod: off unless AI_ALLOW_MOCK_FALLBACK).
     if (
       err instanceof AiProviderError &&
       (err.code === "quota" ||
@@ -198,77 +275,70 @@ export const processUpload = asyncHandler(async (req: Request, res: Response) =>
 
         await prisma.uploadedSchedule.update({
           where: { id: record.id },
-          data: { processingStatus: "COMPLETED", error: null },
+          data: {
+            processingStatus: "COMPLETED",
+            error: null,
+            provider: fallback.name,
+            result: { entries: fallbackEntries, fallback: true } as unknown as Prisma.InputJsonValue,
+          },
         });
 
         const reason =
           err.code === "quota"
             ? "quota exceeded"
             : err.code === "busy"
-              ? "unavailable (503)"
+              ? "unavailable (503/504)"
               : err.code === "malformed"
                 ? "returned malformed output"
                 : "timed out";
         console.warn(
-          `[fallback] upload=${record.id} AI provider ${reason} — served DEMO fallback result for this request only (entries=${fallbackEntries.length})`,
+          `[fallback] upload=${record.id} AI provider ${reason} — served DEMO fallback result (entries=${fallbackEntries.length})`,
         );
-        sendCompleted(res, record, fallbackEntries, fallback.name, true);
         return;
       } catch (fallbackErr) {
-        // Mock also failed → fall through to the normal 502 path below,
-        // keeping the ORIGINAL provider error for the DB write + client
-        // message.
+        // Mock also failed → fall through to the FAILED write below, keeping
+        // the ORIGINAL provider error.
         console.error(
           `[fallback] upload=${record.id} mock fallback failed: ${String(fallbackErr)}`,
         );
       }
     }
 
-    const reason = err instanceof AiProviderError ? err.message : String(err);
-    await prisma.uploadedSchedule.update({
-      where: { id: record.id },
-      data: { processingStatus: "FAILED", error: reason.slice(0, 500) },
-    });
-    sendError(res, {
-      status: 502,
-      // Honest, provider-aware copy instead of blaming the user's image.
-      message:
-        err instanceof AiProviderError && err.userMessage
-          ? err.userMessage
-          : "We couldn't analyze this schedule. Please try again with a clearer image.",
-    });
+    const internal = err instanceof AiProviderError ? err.message : String(err);
+    console.error(`[extract] upload=${record.id} failed: ${internal}`);
+    const safeMessage =
+      err instanceof AiProviderError && err.userMessage
+        ? err.userMessage
+        : "We couldn't analyze this schedule. Please try again with a clearer image.";
+    await prisma.uploadedSchedule
+      .update({
+        where: { id: record.id },
+        data: {
+          processingStatus: "FAILED",
+          error: safeMessage.slice(0, 500),
+          provider: null,
+          result: Prisma.DbNull,
+        },
+      })
+      .catch((writeErr) => {
+        console.error(`[extract] upload=${record.id} FAILED write error: ${String(writeErr)}`);
+      });
   }
-});
+}
 
-// Shared 200 response for the normal path and the quota-fallback path.
-function sendCompleted(
-  res: Response,
-  record: { id: string; fileName: string; fileSize: number },
-  entries: ReturnType<typeof parseAnalyzeResult>,
-  provider: ProviderName,
-  fallback: boolean,
-): void {
-  sendSuccess(res, {
-    data: {
-      upload: {
-        id: record.id,
-        status: "COMPLETED",
-        imageUrl: `/api/schedule-upload/${record.id}/image`,
-        fileName: record.fileName,
-        fileSize: record.fileSize,
-      },
-      provider,
-      ...(fallback ? { fallback: true } : {}),
-      entries,
-      ...(entries.length === 0
-        ? { message: "No classes were detected in this image." }
-        : {}),
-    },
-    message:
-      entries.length === 0
-        ? "No classes were detected in this image."
-        : `Found ${entries.length} ${entries.length === 1 ? "class" : "classes"}. Review them before saving.`,
-  });
+function serializeUpload(record: {
+  id: string;
+  processingStatus: string;
+  fileName: string;
+  fileSize: number;
+}) {
+  return {
+    id: record.id,
+    status: record.processingStatus,
+    imageUrl: `/api/schedule-upload/${record.id}/image`,
+    fileName: record.fileName,
+    fileSize: record.fileSize,
+  };
 }
 
 function sniffMimeFromPath(filePath: string): string | null {

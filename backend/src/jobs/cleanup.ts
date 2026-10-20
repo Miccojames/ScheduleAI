@@ -8,6 +8,10 @@ import { env } from "../config/env.js";
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+// A background extraction can legitimately run for up to ~8 minutes (retry
+// budget); anything PROCESSING well past that was interrupted (crash/restart)
+// and must be failed so the user isn't stuck watching a phantom spinner.
+const STALE_PROCESSING_MS = 15 * 60 * 1000;
 
 const uploadRoot = path.resolve(env.UPLOAD_DIR);
 
@@ -76,8 +80,33 @@ async function purgeOrphanImages(): Promise<void> {
   if (removed > 0) console.log(`[cleanup] removed ${removed} orphaned image file(s).`);
 }
 
+/**
+ * PROCESSING rows whose last update is older than STALE_PROCESSING_MS: the
+ * in-process run died with the server (in-memory work can't survive a
+ * restart) — mark them FAILED with a safe message so pollers stop waiting.
+ * Exported for the startup + per-minute sweeps in jobs/index.ts.
+ */
+export async function failStaleProcessing(): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_PROCESSING_MS);
+  const result = await prisma.uploadedSchedule.updateMany({
+    where: { processingStatus: "PROCESSING", updatedAt: { lt: cutoff } },
+    data: {
+      processingStatus: "FAILED",
+      error: "Scanning was interrupted. Please try again.",
+    },
+  });
+  if (result.count > 0) {
+    console.warn(`[cleanup] marked ${result.count} stalled PROCESSING upload(s) as FAILED.`);
+  }
+}
+
 /** One cleanup pass — every step is guarded so the timer can never throw. */
 export async function cleanupTick(): Promise<void> {
+  try {
+    await failStaleProcessing();
+  } catch (err) {
+    console.warn("[cleanup] stale-processing pass failed:", err);
+  }
   try {
     await purgeStaleUploads();
   } catch (err) {

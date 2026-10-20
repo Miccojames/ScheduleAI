@@ -2,7 +2,7 @@
 import { isTest } from "../config/env.js";
 import { configure, isConfigured } from "../services/push.service.js";
 import { runReminderSweep } from "../services/notification.service.js";
-import { startCleanupJob } from "./cleanup.js";
+import { startCleanupJob, failStaleProcessing } from "./cleanup.js";
 
 const REMINDER_TICK_MS = 60_000;
 const FIRST_SWEEP_DELAY_MS = 5_000;
@@ -24,9 +24,15 @@ export function startJobs(): void {
     );
   }
 
-  // Reminder sweep — every minute; unref'd so it never blocks shutdown.
+  // Reminder sweep + stalled-extraction watchdog — every minute; unref'd so
+  // it never blocks shutdown. failStaleProcessing marks PROCESSING rows whose
+  // in-process run died (server restart/crash) as FAILED so pollers stop
+  // waiting on a phantom scan.
   const sweep = setInterval(() => {
     void runReminderSweep(new Date());
+    void failStaleProcessing().catch((err) =>
+      console.warn("[jobs] stale-processing sweep failed:", err),
+    );
   }, REMINDER_TICK_MS);
   sweep.unref();
 
@@ -34,6 +40,9 @@ export function startJobs(): void {
   // and Prisma warm up first).
   const initialSweep = setTimeout(() => {
     void runReminderSweep(new Date());
+    void failStaleProcessing().catch((err) =>
+      console.warn("[jobs] stale-processing sweep failed:", err),
+    );
   }, FIRST_SWEEP_DELAY_MS);
   initialSweep.unref();
 

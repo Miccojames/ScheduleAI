@@ -11,6 +11,8 @@ const router = Router();
 router.get("/", requireAuth, uploadController.list);
 router.post("/", requireAuth, uploadLimiter, uploadImage.single("image"), uploadController.upload);
 router.get("/:id/image", requireAuth, uploadController.serveImage);
+// GET /:id is the poll target for the background process (202 kick on POST).
+router.get("/:id", requireAuth, uploadController.getUpload);
 router.post("/:id/process", requireAuth, uploadLimiter, uploadController.processUpload);
 router.delete("/:id", requireAuth, uploadController.remove);
 

@@ -5,7 +5,8 @@ import { toast } from "sonner";
 import { apiErrorMessage } from "@/services/api";
 import { uploadApi } from "@/services/upload.api";
 
-/** Step 2 of the AI flow: run extraction and receive the detected classes. */
+/** Step 2 of the AI flow: kick the background scan (202); the caller polls
+ * waitForUpload() for the result. */
 export function useProcessUpload() {
   return useMutation({
     mutationFn: (uploadId: string) => uploadApi.process(uploadId),

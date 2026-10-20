@@ -66,6 +66,24 @@ export function UploadHistory({ uploads }: { uploads: UploadRecord[] }) {
   async function handleRerun(upload: UploadRecord) {
     setRerunningId(upload.id);
     try {
+      // Already scanned → reopen the stored result without burning another
+      // AI call (waitForUpload isn't needed; GET resolves instantly).
+      if (upload.processingStatus === "COMPLETED") {
+        const status = await uploadApi.get(upload.id);
+        if (status.entries.length === 0) {
+          toast.info(status.message ?? "No classes were detected in this image.");
+          return;
+        }
+        setReview({
+          detected: status.entries,
+          uploadId: upload.id,
+          provider: status.provider ?? "mock",
+          imageUrl: status.upload.imageUrl ?? null,
+        });
+        router.push("/upload/review");
+        return;
+      }
+
       const result = await reprocess.mutateAsync(upload.id);
       if (result.entries.length === 0) {
         toast.info(result.message ?? "No classes were detected in this image.");
