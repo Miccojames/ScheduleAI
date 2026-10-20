@@ -10,6 +10,7 @@ import { ProcessingSteps } from "@/components/upload/ProcessingSteps";
 import { UploadDropzone } from "@/components/upload/UploadDropzone";
 import { useProcessUpload } from "@/hooks/useProcessUpload";
 import { useUploadSchedule } from "@/hooks/useUploadSchedule";
+import { ApiError } from "@/services/api";
 import { useReviewStore } from "@/stores/reviewStore";
 
 type Stage = "idle" | "uploading" | "processing" | "error" | "empty";
@@ -19,6 +20,8 @@ export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
+  // Server-provided failure message (ApiError.message); null → static copy.
+  const [failureMessage, setFailureMessage] = useState<string | null>(null);
   const upload = useUploadSchedule();
   const process = useProcessUpload();
   const setReview = useReviewStore((state) => state.setReview);
@@ -46,7 +49,12 @@ export default function UploadPage() {
         imageUrl: uploadResult.upload.imageUrl ?? null,
       });
       router.push("/upload/review");
-    } catch {
+    } catch (error) {
+      // Surface the server's honest error message when we have one (quota /
+      // timeout / provider outage); otherwise fall back to the static copy.
+      setFailureMessage(
+        error instanceof ApiError && error.message ? error.message : null,
+      );
       setStage("error");
     }
   }
@@ -54,6 +62,7 @@ export default function UploadPage() {
   function reset() {
     setFile(null);
     setStage("idle");
+    setFailureMessage(null);
     upload.reset();
     process.reset();
   }
@@ -81,11 +90,14 @@ export default function UploadPage() {
               <ImageOff className="size-6" aria-hidden="true" />
             </span>
             <h2 className="mt-4 text-base font-semibold text-zinc-900">
-              Sorry, we couldn&apos;t read this schedule clearly. Try uploading a clearer image.
+              {failureMessage ??
+                "Sorry, we couldn't read this schedule clearly. Try uploading a clearer image."}
             </h2>
-            <p className="mt-1.5 text-sm text-gray-600">
-              Make sure the whole schedule is inside the photo and the text is readable.
-            </p>
+            {failureMessage ? null : (
+              <p className="mt-1.5 text-sm text-gray-600">
+                Make sure the whole schedule is inside the photo and the text is readable.
+              </p>
+            )}
             <div className="mt-5 flex justify-center gap-2">
               <Button onClick={reset}>
                 <RefreshCw className="size-4" aria-hidden="true" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -15,29 +15,71 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DAY_ORDER, dayLabel, toMinutes, todayDayOfWeek } from "@/lib/time";
+import { ENTRY_KINDS, KIND_META } from "@/lib/kind";
+import { DAY_ORDER, dayLabel, dayOfWeekForDate, parseIsoDate, toMinutes, todayDayOfWeek } from "@/lib/time";
 import { DAYS_OF_WEEK } from "@/types";
-import type { DayOfWeek, Schedule } from "@/types";
+import type { DayOfWeek, EntryPayload, Schedule } from "@/types";
+import { cn } from "cn";
 
 const classSchema = z
   .object({
     scheduleId: z.string().min(1, "Choose a schedule."),
+    /** What kind of event this is — class, work, personal or other. */
+    kind: z.enum(ENTRY_KINDS),
     subject: z.string().trim().min(1, "Enter a subject."),
     day: z.enum(DAYS_OF_WEEK),
+    /** "YYYY-MM-DD" — required when isOneOff is true. */
+    date: z.string(),
+    isOneOff: z.boolean(),
     startTime: z.string().min(1, "Choose a start time."),
     endTime: z.string().min(1, "Choose an end time."),
     instructor: z.string().trim(),
     room: z.string().trim(),
     notes: z.string().trim(),
+    /**
+     * Not rendered as a field: switching kind seeds this with the kind's
+     * default color. Left empty otherwise so the backend keeps its own
+     * palette choice. A real color picker (if one is ever added) writes the
+     * same value last, so it wins.
+     */
+    color: z.string(),
   })
   .refine((values) => toMinutes(values.endTime) > toMinutes(values.startTime), {
     message: "End time must be after start time.",
     path: ["endTime"],
+  })
+  .refine((values) => !values.isOneOff || /^\d{4}-\d{2}-\d{2}$/.test(values.date), {
+    message: "Pick the date for this one-time event.",
+    path: ["date"],
   });
 
 export type ClassFormValues = z.infer<typeof classSchema>;
 
 export type ClassFormDefaults = Partial<ClassFormValues>;
+
+/**
+ * Map validated form values to the backend entry payload. For one-off events
+ * the weekday is derived from the picked date (the server does the same, so
+ * the echoed entry always shows the right day).
+ */
+export function classFormToPayload(values: ClassFormValues): EntryPayload {
+  const isOneOff = Boolean(values.isOneOff);
+  return {
+    subject: values.subject,
+    day: isOneOff ? dayOfWeekForDate(parseIsoDate(values.date)) : values.day,
+    startTime: values.startTime,
+    endTime: values.endTime,
+    instructor: values.instructor || undefined,
+    room: values.room || undefined,
+    notes: values.notes || undefined,
+    isOneOff,
+    kind: values.kind,
+    // Only set when the kind changed (or a color picker wrote it) — empty means
+    // "leave the backend's palette choice alone".
+    color: values.color?.trim() || undefined,
+    ...(isOneOff ? { date: values.date } : {}),
+  };
+}
 
 interface ClassFormProps {
   schedules: Schedule[];
@@ -52,13 +94,17 @@ interface ClassFormProps {
 
 const emptyValues: ClassFormDefaults = {
   scheduleId: "",
+  kind: "class",
   subject: "",
   day: todayDayOfWeek(),
+  date: "",
+  isOneOff: false,
   startTime: "",
   endTime: "",
   instructor: "",
   room: "",
   notes: "",
+  color: "",
 };
 
 /** Shared add/edit form, driven by react-hook-form and zod. */
@@ -75,11 +121,15 @@ export function ClassForm({
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors },
   } = useForm<ClassFormValues>({
     resolver: zodResolver(classSchema),
     defaultValues: { ...emptyValues, ...defaultValues },
   });
+
+  const isOneOff = useWatch({ control, name: "isOneOff", defaultValue: false });
+  const kind = useWatch({ control, name: "kind", defaultValue: "class" });
 
   return (
     <form
@@ -88,6 +138,70 @@ export function ClassForm({
       noValidate
       id="class-form"
     >
+      {/* Event type — segmented radiogroup; changing it suggests the kind color. */}
+      <Controller
+        control={control}
+        name="kind"
+        render={({ field }) => (
+          <fieldset className="min-w-0">
+            <legend className="mb-1.5 text-sm font-medium text-gray-900">
+              Event type
+            </legend>
+            <div
+              role="radiogroup"
+              aria-label="Event type"
+              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            >
+              {ENTRY_KINDS.map((kind) => {
+                const meta = KIND_META[kind];
+                const selected = field.value === kind;
+                const Icon = meta.icon;
+                return (
+                  <label
+                    key={kind}
+                    className={cn(
+                      "flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-medium transition-colors",
+                      "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background",
+                      selected
+                        ? "shadow-sm"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900",
+                    )}
+                    style={
+                      selected
+                        ? {
+                            backgroundColor: `${meta.defaultColor}1A`,
+                            borderColor: meta.defaultColor,
+                            color: meta.defaultColor,
+                          }
+                        : undefined
+                    }
+                  >
+                    <input
+                      type="radio"
+                      name="event-kind"
+                      className="sr-only"
+                      value={kind}
+                      checked={selected}
+                      onChange={() => {
+                        field.onChange(kind);
+                        // Suggest the kind's palette color; an explicit color
+                        // picker (if one exists later) overwrites this.
+                        setValue("color", meta.defaultColor);
+                      }}
+                    />
+                    <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span>{meta.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {KIND_META[field.value ?? "class"].description}
+            </p>
+          </fieldset>
+        )}
+      />
+
       {!lockSchedule ? (
         <div className="space-y-1.5">
           <Label htmlFor="scheduleId">Schedule</Label>
@@ -128,28 +242,61 @@ export function ClassForm({
         ) : null}
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="day">Day</Label>
-        <Controller
-          control={control}
-          name="day"
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={(value: DayOfWeek) => field.onChange(value)}>
-              <SelectTrigger id="day" className="w-full">
-                <SelectValue placeholder="Choose a day" />
-              </SelectTrigger>
-              <SelectContent>
-                {DAY_ORDER.map((day) => (
-                  <SelectItem key={day} value={day}>
-                    {dayLabel(day)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+      <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+        <input
+          id="isOneOff"
+          type="checkbox"
+          aria-describedby="isOneOff-hint"
+          className="mt-0.5 size-4 shrink-0 accent-indigo-600"
+          {...register("isOneOff")}
         />
-        {errors.day ? <p className="text-xs text-rose-600">{errors.day.message}</p> : null}
+        <div className="min-w-0">
+          <Label htmlFor="isOneOff" className="cursor-pointer">
+            One-time event
+          </Label>
+          <p id="isOneOff-hint" className="mt-0.5 text-xs text-gray-500">
+            Happens once on a specific date (exam, deadline) instead of every week.
+          </p>
+        </div>
       </div>
+
+      {isOneOff ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="date">Date</Label>
+          <Input
+            id="date"
+            type="date"
+            aria-invalid={Boolean(errors.date)}
+            {...register("date")}
+          />
+          {errors.date ? (
+            <p className="text-xs text-rose-600">{errors.date.message}</p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <Label htmlFor="day">Day</Label>
+          <Controller
+            control={control}
+            name="day"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={(value: DayOfWeek) => field.onChange(value)}>
+                <SelectTrigger id="day" className="w-full">
+                  <SelectValue placeholder="Choose a day" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAY_ORDER.map((day) => (
+                    <SelectItem key={day} value={day}>
+                      {dayLabel(day)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.day ? <p className="text-xs text-rose-600">{errors.day.message}</p> : null}
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -182,11 +329,11 @@ export function ClassForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="room">Room</Label>
+          <Label htmlFor="room">{kind === "class" ? "Room" : "Location"}</Label>
           <Input id="room" placeholder="Room 402" {...register("room")} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="instructor">Instructor</Label>
+          <Label htmlFor="instructor">{kind === "class" ? "Instructor" : "Host"}</Label>
           <Input id="instructor" placeholder="Prof. Santos" {...register("instructor")} />
         </div>
       </div>

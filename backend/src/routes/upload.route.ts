@@ -8,8 +8,10 @@ const router = Router();
 
 // Everything upload-related requires auth; upload+process are rate-limited
 // 20/hour per user/IP.
+router.get("/", requireAuth, uploadController.list);
 router.post("/", requireAuth, uploadLimiter, uploadImage.single("image"), uploadController.upload);
 router.get("/:id/image", requireAuth, uploadController.serveImage);
 router.post("/:id/process", requireAuth, uploadLimiter, uploadController.processUpload);
+router.delete("/:id", requireAuth, uploadController.remove);
 
 export default router;

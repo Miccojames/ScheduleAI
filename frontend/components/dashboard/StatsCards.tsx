@@ -18,7 +18,7 @@ interface StatsCardsProps {
   isLoading?: boolean;
 }
 
-const DEFAULT_TONE = "bg-indigo-50 text-indigo-600";
+const DEFAULT_TONE = "bg-accent text-accent-foreground";
 
 /** Three small summary cards at the top of the dashboard. */
 export function StatsCards({ stats, isLoading = false }: StatsCardsProps) {
@@ -27,19 +27,19 @@ export function StatsCards({ stats, isLoading = false }: StatsCardsProps) {
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
-          <Card key={stat.label} className="rounded-2xl border-gray-200 p-4 shadow-sm">
+          <Card key={stat.label} className="rounded-2xl border-border bg-card p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm text-gray-500">{stat.label}</p>
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
                 {isLoading ? (
                   <Skeleton className="mt-2 h-7 w-20" />
                 ) : (
-                  <p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">
+                  <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
                     {stat.value}
                   </p>
                 )}
                 {stat.hint && !isLoading ? (
-                  <p className="mt-0.5 truncate text-xs text-gray-500">{stat.hint}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{stat.hint}</p>
                 ) : null}
               </div>
               <span

@@ -11,7 +11,19 @@ import type {
  * demo schedule so the full upload → parse → review pipeline can be exercised
  * without any API key or network access. The response carries provider:"mock"
  * all the way to the client so the UI can label it as demo data.
+ *
+ * Deterministic per-field confidences (subject/day/times 0.95, instructor 0.8,
+ * room 0.6 < 0.75) let the review UI demo its "low confidence" highlighting.
  */
+const MOCK_CONFIDENCE = {
+  subject: 0.95,
+  day: 0.95,
+  startTime: 0.95,
+  endTime: 0.95,
+  instructor: 0.8,
+  room: 0.6,
+} as const;
+
 const DEMO_ENTRIES: RawAiEntry[] = [
   {
     subject: "Web Development",
@@ -21,6 +33,7 @@ const DEMO_ENTRIES: RawAiEntry[] = [
     room: "Room 201",
     instructor: "Juan Dela Cruz",
     notes: null,
+    confidence: { ...MOCK_CONFIDENCE },
   },
   {
     subject: "Database Systems",
@@ -32,6 +45,7 @@ const DEMO_ENTRIES: RawAiEntry[] = [
     room: "Room 305?",
     instructor: "Maria Santos",
     notes: "Lab on Thursdays",
+    confidence: { ...MOCK_CONFIDENCE },
   },
   {
     subject: "Networking",
@@ -41,6 +55,7 @@ const DEMO_ENTRIES: RawAiEntry[] = [
     room: null,
     instructor: "Andres Reyes",
     notes: null,
+    confidence: { ...MOCK_CONFIDENCE },
   },
 ];
 
@@ -51,6 +66,12 @@ export class MockProvider implements ScheduleImageAnalyzer {
   async analyze(_input: AnalyzeInput): Promise<AnalyzeResult> {
     // Small delay so the PROCESSING state is observable in the UI.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    return { entries: DEMO_ENTRIES };
+    // Copies (including confidence) so callers can't mutate the demo data.
+    return {
+      entries: DEMO_ENTRIES.map((entry) => ({
+        ...entry,
+        confidence: entry.confidence ? { ...entry.confidence } : entry.confidence,
+      })),
+    };
   }
 }

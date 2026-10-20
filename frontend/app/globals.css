@@ -39,6 +39,21 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Calendar-only surfaces. Kept out of the shadcn set on purpose: the week
+     grid needs its own line, axis and "now" colours. */
+  --color-cal-line: var(--cal-line);
+  --color-cal-line-soft: var(--cal-line-soft);
+  --color-cal-axis: var(--cal-axis);
+  --color-cal-today: var(--cal-today);
+  --color-cal-now: var(--cal-now);
+  --color-cal-muted: var(--cal-muted);
+
+  /* Conflict treatment, shared by blocks and cards. */
+  --color-conflict-line: var(--conflict-line);
+  --color-conflict-soft: var(--conflict-soft);
+  --color-conflict-fg: var(--conflict-fg);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,6 +64,8 @@
 }
 
 :root {
+  color-scheme: light;
+
   /* Neutral surfaces — app background is a soft gray, cards stay white */
   --background: #f9fafb;
   --foreground: #18181b;
@@ -86,6 +103,72 @@
   --sidebar-accent-foreground: #4338ca;
   --sidebar-border: #e5e7eb;
   --sidebar-ring: #6366f1;
+
+  /* Week grid */
+  --cal-line: #e9ebf1;
+  --cal-line-soft: #f2f4f8;
+  --cal-axis: #8d95a5;
+  --cal-today: rgb(99 102 241 / 0.06);
+  --cal-now: #4f46e5;
+  --cal-muted: #aeb6c4;
+
+  /* Conflicts */
+  --conflict-line: #f59e0b;
+  --conflict-soft: #fef3c7;
+  --conflict-fg: #92400e;
+}
+
+/* Dark theme. Indigo is kept as the brand hue but lifted to indigo-400 so
+   white text on a filled control still clears AA in both directions. */
+:root.dark {
+  color-scheme: dark;
+
+  --background: #0a0b10;
+  --foreground: #e7e9f0;
+  --card: #12141c;
+  --card-foreground: #e7e9f0;
+  --popover: #151822;
+  --popover-foreground: #e7e9f0;
+
+  --primary: #818cf8;
+  --primary-foreground: #0b0d14;
+  --secondary: #1b1f2b;
+  --secondary-foreground: #e7e9f0;
+  --muted: #171b26;
+  --muted-foreground: #99a1b5;
+  --accent: #1d2140;
+  --accent-foreground: #c3c9ff;
+  --destructive: #fb7185;
+  --border: #242939;
+  --input: #2b3145;
+  --ring: #818cf8;
+  --chart-1: #818cf8;
+  --chart-2: #a78bfa;
+  --chart-3: #f472b6;
+  --chart-4: #fbbf24;
+  --chart-5: #34d399;
+
+  --sidebar: #0e1018;
+  --sidebar-foreground: #e7e9f0;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #0b0d14;
+  --sidebar-accent: #1d2140;
+  --sidebar-accent-foreground: #c3c9ff;
+  --sidebar-border: #1e2231;
+  --sidebar-ring: #818cf8;
+
+  /* Week grid */
+  --cal-line: #222738;
+  --cal-line-soft: #191d29;
+  --cal-axis: #7f8aa1;
+  --cal-today: rgb(129 140 248 / 0.1);
+  --cal-now: #a5b4fc;
+  --cal-muted: #59637a;
+
+  /* Conflicts */
+  --conflict-line: #fbbf24;
+  --conflict-soft: rgb(251 191 36 / 0.16);
+  --conflict-fg: #fcd34d;
 }
 
 @layer base {
@@ -101,15 +184,68 @@
     font-feature-settings: "cv11", "ss01";
   }
   ::selection {
-    background-color: color-mix(in srgb, var(--primary) 18%, transparent);
+    background-color: color-mix(in srgb, var(--primary) 22%, transparent);
   }
 }
 
 @layer components {
   /* Shared focus treatment for keyboard users across the app */
   .focus-ring {
-    @apply outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+
+  /* Class blocks and cards set --entry to the colour the API assigned. The
+     tint is mixed against --card so it stays readable in either theme. */
+  .entry-surface {
+    background-color: color-mix(in srgb, var(--entry) 12%, var(--card));
+    border-color: color-mix(in srgb, var(--entry) 28%, var(--border));
+  }
+
+  /* Mixing the class colour toward the theme foreground keeps every palette
+     entry (yellow, green, pink…) above 4.5:1 on its own tint. */
+  .entry-ink {
+    color: color-mix(in srgb, var(--entry) 55%, var(--foreground));
+  }
+
+  .entry-ink-soft {
+    color: color-mix(in srgb, var(--entry) 45%, var(--foreground));
+  }
+
+  /* An amber wash + amber edges, layered on top of the class tint, so a clash
+     reads instantly against both themes. */
+  .entry-conflict {
+    border-color: color-mix(in srgb, var(--conflict-line) 65%, var(--border));
+    border-left-color: var(--conflict-line);
+    background-image: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--conflict-line) 18%, transparent),
+      color-mix(in srgb, var(--conflict-line) 4%, transparent)
+    );
+  }
+
+  /* Faint blueprint grid behind the landing hero. */
+  .hero-grid {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in srgb, var(--foreground) 7%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--foreground) 7%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 65% at 50% 35%, #000 25%, transparent 78%);
+  }
+}
+
+/* The root layout paints a fixed light surface on <body>; this unlayered rule
+   outranks it so the dark theme is never washed out by a hard-coded gray. */
+:root.dark body {
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 /* Comfortable touch targets on phones. Icon-only buttons (fixed square sizes)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, Info, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DAY_ORDER, shortLabel } from "@/lib/time";
 import { cn } from "cn";
-import type { DayOfWeek, DetectedEntry } from "@/types";
+import type { DayOfWeek, DetectedEntry, UncertainField } from "@/types";
 
 export interface ReviewRow {
   id: string;
@@ -22,6 +22,39 @@ export interface ReviewRow {
   instructor: string;
   notes: string;
   needsReview: boolean;
+  /** Legacy per-field flags from the extractor ("days", "subject", …). */
+  uncertainFields?: UncertainField[];
+  /** Per-field AI confidence 0..1 — keys: subject, day, startTime, endTime, instructor, room. */
+  confidence?: Record<string, number>;
+}
+
+/** Fields the AI reports confidence for, mapped from ReviewRow field names. */
+const CONFIDENCE_KEYS = {
+  subject: "subject",
+  days: "day",
+  startTime: "startTime",
+  endTime: "endTime",
+  room: "room",
+  instructor: "instructor",
+} as const;
+
+type ReviewField = keyof typeof CONFIDENCE_KEYS;
+
+/** Below this confidence the AI is "unsure" and the field gets flagged. */
+export const CONFIDENCE_THRESHOLD = 0.75;
+
+/** Whether a single field should carry the "AI unsure" treatment. */
+export function isFieldUncertain(row: ReviewRow, field: ReviewField): boolean {
+  if (row.uncertainFields?.includes(field)) return true;
+  const value = row.confidence?.[CONFIDENCE_KEYS[field]];
+  return typeof value === "number" && value < CONFIDENCE_THRESHOLD;
+}
+
+const ALL_REVIEW_FIELDS: ReviewField[] = ["subject", "days", "startTime", "endTime", "room", "instructor"];
+
+/** True when any field on the row is flagged as uncertain. */
+export function rowHasUncertainFields(row: ReviewRow): boolean {
+  return ALL_REVIEW_FIELDS.some((field) => isFieldUncertain(row, field));
 }
 
 let rowCounter = 0;
@@ -32,7 +65,7 @@ function nextRowId() {
 
 /** Turns a detected entry into an editable row. */
 export function toReviewRow(entry: DetectedEntry): ReviewRow {
-  return {
+  const row: ReviewRow = {
     id: nextRowId(),
     subject: entry.subject ?? "",
     days: [...entry.days],
@@ -43,6 +76,10 @@ export function toReviewRow(entry: DetectedEntry): ReviewRow {
     notes: entry.notes ?? "",
     needsReview: entry.uncertainFields.length > 0,
   };
+  if (entry.uncertainFields.length > 0) row.uncertainFields = entry.uncertainFields;
+  if (entry.confidence) row.confidence = entry.confidence;
+  if (row.needsReview || rowHasUncertainFields(row)) row.needsReview = true;
+  return row;
 }
 
 export function emptyReviewRow(): ReviewRow {
@@ -62,6 +99,8 @@ export function emptyReviewRow(): ReviewRow {
 interface ScheduleReviewTableProps {
   rows: ReviewRow[];
   onChange: (rows: ReviewRow[]) => void;
+  /** When true, every row is badged as demo data (mock provider fallback). */
+  demoMode?: boolean;
 }
 
 function FieldError({ children }: { children?: string }) {
@@ -69,9 +108,39 @@ function FieldError({ children }: { children?: string }) {
   return <p className="mt-1 text-xs text-rose-600">{children}</p>;
 }
 
+const UNCERTAIN_TOOLTIP = "AI unsure — please verify";
+
+/** Amber ring + warning icon around a single flagged field. */
+function UncertainFieldWrapper({
+  uncertain,
+  children,
+}: {
+  uncertain: boolean;
+  children: ReactNode;
+}) {
+  if (!uncertain) return <>{children}</>;
+  return (
+    <div className="relative">
+      {children}
+      <span
+        title={UNCERTAIN_TOOLTIP}
+        className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-amber-500"
+      >
+        <AlertTriangle className="size-3.5" aria-hidden="true" />
+        <span className="sr-only">{UNCERTAIN_TOOLTIP}</span>
+      </span>
+    </div>
+  );
+}
+
+const uncertainInputClass =
+  "border-amber-300 bg-amber-50/70 focus-visible:ring-amber-300 aria-invalid:border-rose-400";
+
 /** Stacked cards on phones, a compact grid on desktop — one row per class. */
-export function ScheduleReviewTable({ rows, onChange }: ScheduleReviewTableProps) {
+export function ScheduleReviewTable({ rows, onChange, demoMode = false }: ScheduleReviewTableProps) {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+
+  const hasUncertainRows = useMemo(() => rows.some(rowHasUncertainFields), [rows]);
 
   const errors = useMemo(() => {
     const map = new Map<string, { subject?: string; endTime?: string }>();
@@ -105,8 +174,24 @@ export function ScheduleReviewTable({ rows, onChange }: ScheduleReviewTableProps
 
   return (
     <div className="space-y-3">
+      {hasUncertainRows ? (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+          <p>Some fields look uncertain — review the highlighted ones before saving.</p>
+        </div>
+      ) : null}
+
       {rows.map((row) => {
         const rowErrors = errors.get(row.id);
+        const subjectUncertain = isFieldUncertain(row, "subject");
+        const startUncertain = isFieldUncertain(row, "startTime");
+        const endUncertain = isFieldUncertain(row, "endTime");
+        const roomUncertain = isFieldUncertain(row, "room");
+        const instructorUncertain = isFieldUncertain(row, "instructor");
+        const daysUncertain = isFieldUncertain(row, "days");
 
         return (
           <div
@@ -119,6 +204,11 @@ export function ScheduleReviewTable({ rows, onChange }: ScheduleReviewTableProps
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-gray-500">Class</span>
+                {demoMode ? (
+                  <span className="inline-flex items-center rounded-full border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                    ⚠ Demo data
+                  </span>
+                ) : null}
                 {row.needsReview ? (
                   <Badge className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-50">
                     <AlertTriangle className="size-3" aria-hidden="true" />
@@ -142,14 +232,17 @@ export function ScheduleReviewTable({ rows, onChange }: ScheduleReviewTableProps
                 <Label htmlFor={`${row.id}-subject`} className="text-xs text-gray-500">
                   Subject
                 </Label>
-                <Input
-                  id={`${row.id}-subject`}
-                  value={row.subject}
-                  placeholder="Not detected"
-                  aria-invalid={Boolean(rowErrors?.subject)}
-                  onChange={(event) => update(row.id, { subject: event.target.value })}
-                  className="mt-1"
-                />
+                <UncertainFieldWrapper uncertain={subjectUncertain}>
+                  <Input
+                    id={`${row.id}-subject`}
+                    value={row.subject}
+                    placeholder="Not detected"
+                    title={subjectUncertain ? UNCERTAIN_TOOLTIP : undefined}
+                    aria-invalid={Boolean(rowErrors?.subject)}
+                    onChange={(event) => update(row.id, { subject: event.target.value })}
+                    className={cn("mt-1", subjectUncertain && uncertainInputClass)}
+                  />
+                </UncertainFieldWrapper>
                 <FieldError>{rowErrors?.subject}</FieldError>
               </div>
 
@@ -157,34 +250,51 @@ export function ScheduleReviewTable({ rows, onChange }: ScheduleReviewTableProps
                 <Label htmlFor={`${row.id}-start`} className="text-xs text-gray-500">
                   Start time
                 </Label>
-                <Input
-                  id={`${row.id}-start`}
-                  type="time"
-                  step={300}
-                  value={row.startTime}
-                  onChange={(event) => update(row.id, { startTime: event.target.value })}
-                  className="mt-1"
-                />
+                <UncertainFieldWrapper uncertain={startUncertain}>
+                  <Input
+                    id={`${row.id}-start`}
+                    type="time"
+                    step={300}
+                    value={row.startTime}
+                    title={startUncertain ? UNCERTAIN_TOOLTIP : undefined}
+                    onChange={(event) => update(row.id, { startTime: event.target.value })}
+                    className={cn("mt-1", startUncertain && uncertainInputClass)}
+                  />
+                </UncertainFieldWrapper>
               </div>
 
               <div className="md:col-span-4">
                 <Label htmlFor={`${row.id}-end`} className="text-xs text-gray-500">
                   End time
                 </Label>
-                <Input
-                  id={`${row.id}-end`}
-                  type="time"
-                  step={300}
-                  value={row.endTime}
-                  aria-invalid={Boolean(rowErrors?.endTime)}
-                  onChange={(event) => update(row.id, { endTime: event.target.value })}
-                  className="mt-1"
-                />
+                <UncertainFieldWrapper uncertain={endUncertain}>
+                  <Input
+                    id={`${row.id}-end`}
+                    type="time"
+                    step={300}
+                    value={row.endTime}
+                    title={endUncertain ? UNCERTAIN_TOOLTIP : undefined}
+                    aria-invalid={Boolean(rowErrors?.endTime)}
+                    onChange={(event) => update(row.id, { endTime: event.target.value })}
+                    className={cn("mt-1", endUncertain && uncertainInputClass)}
+                  />
+                </UncertainFieldWrapper>
                 <FieldError>{rowErrors?.endTime}</FieldError>
               </div>
 
               <div className="md:col-span-12">
-                <span className="text-xs text-gray-500">Days</span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  Days
+                  {daysUncertain ? (
+                    <span
+                      title={UNCERTAIN_TOOLTIP}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-px text-[11px] font-medium text-amber-800"
+                    >
+                      <AlertTriangle className="size-3" aria-hidden="true" />
+                      AI unsure — please verify
+                    </span>
+                  ) : null}
+                </span>
                 <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Days for this class">
                   {DAY_ORDER.map((day) => {
                     const selected = row.days.includes(day);
@@ -215,26 +325,32 @@ export function ScheduleReviewTable({ rows, onChange }: ScheduleReviewTableProps
                 <Label htmlFor={`${row.id}-room`} className="text-xs text-gray-500">
                   Room
                 </Label>
-                <Input
-                  id={`${row.id}-room`}
-                  value={row.room}
-                  placeholder="Not detected"
-                  onChange={(event) => update(row.id, { room: event.target.value })}
-                  className="mt-1"
-                />
+                <UncertainFieldWrapper uncertain={roomUncertain}>
+                  <Input
+                    id={`${row.id}-room`}
+                    value={row.room}
+                    placeholder="Not detected"
+                    title={roomUncertain ? UNCERTAIN_TOOLTIP : undefined}
+                    onChange={(event) => update(row.id, { room: event.target.value })}
+                    className={cn("mt-1", roomUncertain && uncertainInputClass)}
+                  />
+                </UncertainFieldWrapper>
               </div>
 
               <div className="md:col-span-6">
                 <Label htmlFor={`${row.id}-instructor`} className="text-xs text-gray-500">
                   Instructor
                 </Label>
-                <Input
-                  id={`${row.id}-instructor`}
-                  value={row.instructor}
-                  placeholder="Not detected"
-                  onChange={(event) => update(row.id, { instructor: event.target.value })}
-                  className="mt-1"
-                />
+                <UncertainFieldWrapper uncertain={instructorUncertain}>
+                  <Input
+                    id={`${row.id}-instructor`}
+                    value={row.instructor}
+                    placeholder="Not detected"
+                    title={instructorUncertain ? UNCERTAIN_TOOLTIP : undefined}
+                    onChange={(event) => update(row.id, { instructor: event.target.value })}
+                    className={cn("mt-1", instructorUncertain && uncertainInputClass)}
+                  />
+                </UncertainFieldWrapper>
               </div>
 
               <div className="md:col-span-12">

@@ -5,34 +5,38 @@ import { usePathname } from "next/navigation";
 import { CalendarCheck } from "lucide-react";
 import { useMe } from "@/hooks/useAuth";
 import { pageTitleForPath } from "@/lib/navigation";
-import { initials } from "@/components/layout/Sidebar";
+import { ThemeToggle, initials } from "@/components/layout/Sidebar";
 import { cn } from "cn";
 
-/** Top bar shown on phones: page title plus the user's initials. */
+/** Top bar shown on phones: page title, theme switch and the user's initials. */
 export function Header() {
   const pathname = usePathname();
   const { data: user } = useMe();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white/95 px-4 backdrop-blur md:hidden">
-      <div className="flex items-center gap-2">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b border-border bg-background/85 px-4 backdrop-blur-md md:hidden">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm shadow-primary/25">
           <CalendarCheck className="size-4.5" aria-hidden="true" />
         </span>
-        <span className="text-base font-semibold tracking-tight text-zinc-900">
+        <span className="truncate text-base font-semibold tracking-tight text-foreground">
           {pageTitleForPath(pathname)}
         </span>
       </div>
-      <Link
-        href="/settings"
-        aria-label="Account settings"
-        className={cn(
-          "flex size-9 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700",
-          "transition-opacity hover:opacity-80",
-        )}
-      >
-        {initials(user?.firstName, user?.lastName)}
-      </Link>
+      <div className="flex shrink-0 items-center gap-1">
+        <ThemeToggle />
+        <Link
+          href="/settings"
+          aria-label="Account settings"
+          className={cn(
+            "flex size-9 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground",
+            "transition-transform duration-150 hover:scale-105 active:scale-95",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          )}
+        >
+          {initials(user?.firstName, user?.lastName)}
+        </Link>
+      </div>
     </header>
   );
 }

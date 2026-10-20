@@ -8,10 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ClassForm, type ClassFormDefaults } from "@/components/schedule/ClassForm";
+import {
+  ClassForm,
+  classFormToPayload,
+  type ClassFormDefaults,
+  type ClassFormValues,
+} from "@/components/schedule/ClassForm";
 import { ConflictWarning } from "@/components/schedule/ConflictWarning";
 import { useUpdateEntry } from "@/hooks/useUpdateEntry";
-import type { Conflict, Entry, EntryPayload } from "@/types";
+import { kindOf } from "@/lib/kind";
+import type { Conflict, Entry } from "@/types";
 
 interface EditClassDialogProps {
   open: boolean;
@@ -20,7 +26,7 @@ interface EditClassDialogProps {
   onSaved?: (conflicts: Conflict[]) => void;
 }
 
-/** Prefilled edit form for a single class. */
+/** Prefilled edit form for a single event. */
 export function EditClassDialog({ open, onOpenChange, entry, onSaved }: EditClassDialogProps) {
   const updateEntry = useUpdateEntry();
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
@@ -29,34 +35,29 @@ export function EditClassDialog({ open, onOpenChange, entry, onSaved }: EditClas
 
   const defaults: ClassFormDefaults = {
     scheduleId: entry.scheduleId,
+    // kindOf() defaults missing/legacy values to "class" so the picker is
+    // always pre-filled with a real value.
+    kind: kindOf(entry),
     subject: entry.subject,
     day: entry.day,
+    isOneOff: entry.isOneOff,
+    date: entry.date ?? "",
     startTime: entry.startTime,
     endTime: entry.endTime,
     instructor: entry.instructor ?? "",
     room: entry.room ?? "",
     notes: entry.notes ?? "",
+    color: entry.color,
   };
 
-  async function handleSubmit(values: {
-    subject: string;
-    day: Entry["day"];
-    startTime: string;
-    endTime: string;
-    instructor: string;
-    room: string;
-    notes: string;
-  }) {
+  async function handleSubmit(values: ClassFormValues) {
     if (!entry) return;
-    const payload: EntryPayload = {
-      subject: values.subject,
-      day: values.day,
-      startTime: values.startTime,
-      endTime: values.endTime,
-      instructor: values.instructor || undefined,
-      room: values.room || undefined,
-      notes: values.notes || undefined,
-    };
+    const payload = classFormToPayload(values);
+
+    // Keep the exception list when editing — the form doesn't manage it.
+    if (entry.exceptionDates.length > 0) {
+      payload.exceptionDates = entry.exceptionDates;
+    }
 
     try {
       const result = await updateEntry.mutateAsync({
@@ -76,8 +77,8 @@ export function EditClassDialog({ open, onOpenChange, entry, onSaved }: EditClas
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-6 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Edit Class</DialogTitle>
-          <DialogDescription>Update the details of this class.</DialogDescription>
+          <DialogTitle className="text-lg font-semibold">Edit Event</DialogTitle>
+          <DialogDescription>Update the details of this event.</DialogDescription>
         </DialogHeader>
 
         <ConflictWarning conflicts={conflicts} className="mt-1" />

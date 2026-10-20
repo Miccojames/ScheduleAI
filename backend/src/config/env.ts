@@ -31,22 +31,43 @@ const envSchema = z
     // When empty the MOCK OCR provider is used (dev/demo mode).
     GEMINI_API_KEY: z.string().optional().default(""),
     // Optional: Gemini vision model override; blank/missing → gemini-3.8-flash.
+    // Note: gemini-2.0-flash/2.5-flash are retired (404 "no longer available");
+    // 3.8-flash is the only live vision model on this key (~58s/call, which the
+    // provider's 60s timeout + retry budget accommodates).
     GEMINI_MODEL: z
       .string()
       .optional()
       .default("")
       .transform((v) => (v.trim().length > 0 ? v.trim() : "gemini-3.8-flash")),
     UPLOAD_DIR: z.string().min(1).default("./uploads"),
+
+    // Optional: "true"/"false" — when unset, mock fallback is allowed in
+    // development and disabled in production.
+    AI_ALLOW_MOCK_FALLBACK: z.string().optional(),
+
+    // Web Push (VAPID) — generate with `web-push generate-vapid-keys`.
+    // When empty, the notifications endpoints return 503 (feature disabled).
+    VAPID_PUBLIC_KEY: z.string().optional().default(""),
+    VAPID_PRIVATE_KEY: z.string().optional().default(""),
+    VAPID_SUBJECT: z.string().optional().default("mailto:admin@scheduleai.local"),
+
+    // Optional SMTP — when SMTP_HOST is empty, outbound mail (password reset)
+    // is logged to the server console instead of sent (dev mode).
+    SMTP_HOST: z.string().optional().default(""),
+    SMTP_PORT: z.coerce.number().int().optional(),
+    SMTP_USER: z.string().optional().default(""),
+    SMTP_PASS: z.string().optional().default(""),
+    SMTP_FROM: z.string().optional().default("ScheduleAI <no-reply@scheduleai.local>"),
   })
   .superRefine((env, ctx) => {
-    // GEMINI_MODEL must be a plain model id (e.g. "gemini-3.8-flash").
-    // Catches copy-paste typos like "GEMINI_MODEL=gemini-3.8-flash" at boot
+    // GEMINI_MODEL must be a plain model id (e.g. "gemini-2.0-flash").
+    // Catches copy-paste typos like "GEMINI_MODEL=gemini-2.0-flash" at boot
     // with a clear message, instead of a confusing 502 on every upload.
     if (!/^gemini-[a-z0-9.-]+$/i.test(env.GEMINI_MODEL)) {
       ctx.addIssue({
         code: "custom",
         path: ["GEMINI_MODEL"],
-        message: `GEMINI_MODEL must look like "gemini-3.8-flash" (got "${env.GEMINI_MODEL}") — remove any duplicated "GEMINI_MODEL=" prefix or trailing spaces.`,
+        message: `GEMINI_MODEL must look like "gemini-2.0-flash" (got "${env.GEMINI_MODEL}") — remove any duplicated "GEMINI_MODEL=" prefix or trailing spaces.`,
       });
     }
     // In production, JWT_SECRET must not be the example value.
@@ -75,3 +96,11 @@ if (!parsed.success) {
 export const env: Env = parsed.data;
 export const isProduction = env.NODE_ENV === "production";
 export const isTest = env.NODE_ENV === "test";
+// Whether the upload process endpoint may serve MOCK demo entries when the AI
+// provider fails transiently (quota/busy/timeout). Explicit AI_ALLOW_MOCK_FALLBACK
+// ("true"/"false") wins; when unset, allowed in development and disabled in
+// production so real deployments never show fake data.
+export const allowMockFallback =
+  env.AI_ALLOW_MOCK_FALLBACK !== undefined
+    ? env.AI_ALLOW_MOCK_FALLBACK.trim().toLowerCase() === "true"
+    : !isProduction;

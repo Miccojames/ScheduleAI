@@ -19,7 +19,7 @@ interface DayGroup {
   entries: Entry[];
 }
 
-/** Classes for the next few days, grouped by day. */
+/** Events for the next few days, grouped by day. */
 export function UpcomingClasses({ entries, now, days = 3 }: UpcomingClassesProps) {
   const todayIndex = now.getDay();
   const todayName = DAY_ORDER[(todayIndex + 6) % 7];
@@ -38,22 +38,22 @@ export function UpcomingClasses({ entries, now, days = 3 }: UpcomingClassesProps
     .filter((group) => group.entries.length > 0);
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border bg-card shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">Upcoming Classes</CardTitle>
+        <CardTitle className="text-base font-semibold">Upcoming Events</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {groups.length === 0 ? (
           <EmptyState
             icon={CalendarX2}
             title="Nothing coming up."
-            body="No classes scheduled in the next few days."
-            className="border-0 bg-gray-50 py-10"
+            body="No events scheduled in the next few days."
+            className="border-0 bg-muted/40 py-10"
           />
         ) : (
           groups.map((group) => (
             <section key={group.day} aria-labelledby={`upcoming-${group.day}`}>
-              <h3 id={`upcoming-${group.day}`} className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
+              <h3 id={`upcoming-${group.day}`} className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {formatDayHeading(group.day, now)}
               </h3>
               <ul className="space-y-2">

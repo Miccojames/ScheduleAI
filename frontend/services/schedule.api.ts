@@ -1,5 +1,13 @@
-import { api } from "@/services/api";
+import { api, ApiError } from "@/services/api";
 import type { BulkEntry, Conflict, Entry, EntryPayload, Schedule } from "@/types";
+
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+
+/** Optional academic-term window ("YYYY-MM-DD"; null/absent clears it). */
+export interface ScheduleTerm {
+  startDate?: string | null;
+  endDate?: string | null;
+}
 
 export interface EntriesResponse {
   entries: Entry[];
@@ -29,19 +37,42 @@ export const scheduleApi = {
     return api<{ schedules: Schedule[] }>("/api/schedules");
   },
 
-  create(name: string) {
-    return api<{ schedule: Schedule }>("/api/schedules", { method: "POST", body: { name } });
+  create(name: string, term: ScheduleTerm = {}) {
+    return api<{ schedule: Schedule }>("/api/schedules", {
+      method: "POST",
+      body: { name, startDate: term.startDate ?? null, endDate: term.endDate ?? null },
+    });
   },
 
   get(scheduleId: string) {
     return api<{ schedule: Schedule }>(`/api/schedules/${scheduleId}`);
   },
 
-  rename(scheduleId: string, name: string) {
+  rename(scheduleId: string, name: string, term: ScheduleTerm = {}) {
     return api<{ schedule: Schedule }>(`/api/schedules/${scheduleId}`, {
       method: "PUT",
-      body: { name },
+      body: { name, startDate: term.startDate ?? null, endDate: term.endDate ?? null },
     });
+  },
+
+  /**
+   * RFC 5545 export — returns raw `text/calendar` (NOT the JSON envelope),
+   * so it bypasses the shared api() helper and fetches with credentials.
+   */
+  async fetchIcs(scheduleId: string): Promise<string> {
+    const response = await fetch(`${BASE}/api/schedules/${scheduleId}/ics`, {
+      credentials: "include",
+    });
+    if (response.status === 401) {
+      throw new ApiError(401, "Your session has expired. Please sign in again.");
+    }
+    if (response.status === 404) {
+      throw new ApiError(404, "Schedule not found.");
+    }
+    if (!response.ok) {
+      throw new ApiError(response.status, "We couldn't export this schedule. Please try again.");
+    }
+    return response.text();
   },
 
   remove(scheduleId: string) {

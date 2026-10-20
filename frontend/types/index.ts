@@ -3,6 +3,8 @@
  * Do not rename or reshape fields here without changing the backend too.
  */
 
+import type { EntryKind } from "@/lib/kind";
+
 export const DAYS_OF_WEEK = [
   "MONDAY",
   "TUESDAY",
@@ -27,6 +29,10 @@ export interface Schedule {
   id: string;
   name: string;
   userId: string;
+  /** Academic-term window, "YYYY-MM-DD", or null when open-ended. */
+  startDate: string | null;
+  /** Academic-term window, "YYYY-MM-DD", or null when open-ended. */
+  endDate: string | null;
   createdAt: string;
   updatedAt: string;
   entryCount: number;
@@ -46,6 +52,14 @@ export interface Entry {
   /** hex color, matches the backend class-block palette */
   color: string;
   notes: string | null;
+  /** ISO dates ("YYYY-MM-DD") this recurring class does NOT meet. */
+  exceptionDates: string[];
+  /** One-off events (exams, deadlines) happen once on `date`, not weekly. */
+  isOneOff: boolean;
+  /** The single calendar day for one-off events; null for weekly classes. */
+  date: string | null;
+  /** What kind of event this is; absent in older responses → treat as "class". */
+  kind?: EntryKind;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,6 +97,11 @@ export interface DetectedEntry {
   endTime: string | null;
   notes: string | null;
   uncertainFields: UncertainField[];
+  /**
+   * Optional per-field AI confidence (0..1). Keys: subject, day, startTime,
+   * endTime, instructor, room. Values below 0.75 are treated as uncertain.
+   */
+  confidence?: Record<string, number>;
 }
 
 export type UploadStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
@@ -95,6 +114,17 @@ export interface Upload {
   fileSize: number;
 }
 
+/** A row from the upload history list (GET /api/schedule-upload). */
+export interface UploadRecord {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  processingStatus: UploadStatus;
+  error: string | null;
+  scheduleId: string | null;
+  createdAt: string;
+}
+
 export interface BulkEntry {
   subject: string;
   days: DayOfWeek[];
@@ -104,6 +134,10 @@ export interface BulkEntry {
   room?: string;
   notes?: string;
   color?: string;
+  exceptionDates?: string[];
+  isOneOff?: boolean;
+  date?: string;
+  kind?: EntryKind;
 }
 
 export interface EntryPayload {
@@ -115,6 +149,10 @@ export interface EntryPayload {
   room?: string;
   notes?: string;
   color?: string;
+  exceptionDates?: string[];
+  isOneOff?: boolean;
+  date?: string;
+  kind?: EntryKind;
 }
 
 /** Envelope returned by every backend endpoint. */

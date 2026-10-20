@@ -18,6 +18,20 @@ export interface UpdateProfileInput {
   lastName?: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  password: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export const authApi = {
   register(input: RegisterInput) {
     return api<{ user: User }>("/api/auth/register", {
@@ -40,10 +54,45 @@ export const authApi = {
   },
 
   me() {
-    return api<{ user: User }>("/api/auth/me");
+    // skipAuthRedirect: a 401 here just means "not signed in". The callers
+    // (AuthGuard, login/register screens) decide what to do — without this,
+    // visiting /register while logged out bounced straight back to /login.
+    return api<{ user: User }>("/api/auth/me", { skipAuthRedirect: true });
   },
 
   updateMe(input: UpdateProfileInput) {
     return api<{ user: User }>("/api/auth/me", { method: "PUT", body: input });
+  },
+
+  /**
+   * Always resolves with a generic server message when the address is valid —
+   * the backend never reveals whether the account exists (no enumeration).
+   */
+  forgotPassword(input: ForgotPasswordInput) {
+    return api<null>("/api/auth/forgot-password", {
+      method: "POST",
+      body: input,
+      skipAuthRedirect: true,
+    });
+  },
+
+  resetPassword(input: ResetPasswordInput) {
+    // 400 = expired/invalid token; surfaced by the caller, never a redirect.
+    return api<{ user: User }>("/api/auth/reset-password", {
+      method: "POST",
+      body: input,
+      skipAuthRedirect: true,
+    });
+  },
+
+  changePassword(input: ChangePasswordInput) {
+    // skipAuthRedirect: a 401 here means "your current password is wrong",
+    // not "session expired" — the settings card shows it inline instead of
+    // bouncing the user to /login.
+    return api<null>("/api/auth/password", {
+      method: "PUT",
+      body: input,
+      skipAuthRedirect: true,
+    });
   },
 };

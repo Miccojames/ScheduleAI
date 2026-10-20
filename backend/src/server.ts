@@ -1,7 +1,9 @@
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
+import { startJobs } from "./jobs/index.js";
 
 const app = createApp();
+startJobs();
 
 const server = app.listen(env.PORT, () => {
   console.log(`✅ ScheduleAI API listening on http://localhost:${env.PORT}`);

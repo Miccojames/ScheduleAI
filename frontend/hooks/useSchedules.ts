@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/services/api";
-import { scheduleApi, scheduleKeys } from "@/services/schedule.api";
+import { scheduleApi, scheduleKeys, type ScheduleTerm } from "@/services/schedule.api";
 import { useActiveScheduleStore } from "@/stores/activeScheduleStore";
 import type { Schedule } from "@/types";
 
@@ -31,11 +31,15 @@ export function useCreateSchedule() {
   const setActiveScheduleId = useActiveScheduleStore((s) => s.setActiveScheduleId);
 
   return useMutation({
-    mutationFn: (name: string) => scheduleApi.create(name),
+    mutationFn: ({ name, startDate, endDate }: { name: string } & ScheduleTerm) =>
+      scheduleApi.create(name, { startDate, endDate }),
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: scheduleKeys.list() });
       setActiveScheduleId(data.schedule.id);
       toast.success(`“${data.schedule.name}” created.`);
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, "We couldn't create this schedule."));
     },
   });
 }
@@ -44,10 +48,14 @@ export function useRenameSchedule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => scheduleApi.rename(id, name),
+    mutationFn: ({ id, name, startDate, endDate }: { id: string; name: string } & ScheduleTerm) =>
+      scheduleApi.rename(id, name, { startDate, endDate }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: scheduleKeys.list() });
-      toast.success("Schedule renamed.");
+      toast.success("Schedule updated.");
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, "We couldn't save your changes."));
     },
   });
 }

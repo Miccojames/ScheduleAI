@@ -4,7 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { apiErrorMessage } from "@/services/api";
-import { authApi, type LoginInput, type RegisterInput, type UpdateProfileInput } from "@/services/auth.api";
+import {
+  authApi,
+  type ChangePasswordInput,
+  type ForgotPasswordInput,
+  type LoginInput,
+  type RegisterInput,
+  type ResetPasswordInput,
+  type UpdateProfileInput,
+} from "@/services/auth.api";
 import type { User } from "@/types";
 
 export const authKeys = {
@@ -75,5 +83,31 @@ export function useUpdateProfile() {
     onError: (error) => {
       toast.error(apiErrorMessage(error, "We couldn't update your profile."));
     },
+  });
+}
+
+/** Deliberately toast-free: the forgot-password screen renders its own state. */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (input: ForgotPasswordInput) => authApi.forgotPassword(input),
+  });
+}
+
+export function useResetPassword() {
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: (input: ResetPasswordInput) => authApi.resetPassword(input),
+    onSuccess: () => {
+      toast.success("Password updated. You can sign in now.");
+      router.push("/login");
+    },
+  });
+}
+
+/** Errors (including the 401 "wrong current password") stay at the call site. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (input: ChangePasswordInput) => authApi.changePassword(input),
   });
 }

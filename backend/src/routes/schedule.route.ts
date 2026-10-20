@@ -14,6 +14,7 @@ router.use(requireAuth);
 router.get("/", scheduleController.list);
 router.post("/", validate(createScheduleSchema), scheduleController.create);
 router.get("/:id", scheduleController.get);
+router.get("/:id/ics", scheduleController.ics); // raw text/calendar (no JSON envelope)
 router.put("/:id", validate(updateScheduleSchema), scheduleController.update);
 router.delete("/:id", scheduleController.remove);
 

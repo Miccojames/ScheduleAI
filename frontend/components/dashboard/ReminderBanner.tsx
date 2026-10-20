@@ -10,7 +10,7 @@ interface ReminderBannerProps {
   now: Date;
 }
 
-/** Amber banner shown when the next class is about to start. */
+/** Amber banner shown when the next event is about to start. */
 export function ReminderBanner({ entry, now }: ReminderBannerProps) {
   const minutes = minutesUntil(now, entry.startTime);
 
@@ -21,7 +21,7 @@ export function ReminderBanner({ entry, now }: ReminderBannerProps) {
           <BellRing className="size-4" aria-hidden="true" />
         </span>
         <div>
-          <p className="text-sm font-semibold text-amber-950">🔔 Upcoming Class</p>
+          <p className="text-sm font-semibold text-amber-950">🔔 Upcoming event</p>
           <p className="mt-0.5 text-sm text-amber-900">
             {entry.subject} {minutes > 0 ? `starts in ${minutes} minutes.` : "starts now."}
           </p>

@@ -3,7 +3,7 @@ import * as authController from "../controllers/auth.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { authLimiter } from "../middleware/rateLimit.middleware.js";
-import { registerSchema, loginSchema, updateMeSchema } from "../validators/auth.js";
+import { registerSchema, loginSchema, updateMeSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from "../validators/auth.js";
 
 const router = Router();
 
@@ -13,5 +13,10 @@ router.post("/login", authLimiter, validate(loginSchema), authController.login);
 router.post("/logout", authController.logout);
 router.get("/me", requireAuth, authController.me);
 router.put("/me", requireAuth, validate(updateMeSchema), authController.updateMe);
+
+// Password reset (anonymous, token-based) + change (authenticated).
+router.post("/forgot-password", authLimiter, validate(forgotPasswordSchema), authController.forgotPassword);
+router.post("/reset-password", authLimiter, validate(resetPasswordSchema), authController.resetPassword);
+router.put("/password", requireAuth, authLimiter, validate(changePasswordSchema), authController.changePassword);
 
 export default router;

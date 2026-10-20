@@ -7,6 +7,45 @@ export function isValidTime(value: unknown): value is string {
   return typeof value === "string" && TIME_RE.test(value);
 }
 
+// ---------------------------------------------------------------------------
+// ISO date helpers. Term/one-off dates are validated upstream by Zod
+// (z.iso.date — real calendar dates only) and stored as DateTime at midnight
+// UTC, so these conversions never see malformed input.
+// ---------------------------------------------------------------------------
+
+// getUTCDay() index → weekday name (0 = Sunday).
+const WEEKDAYS_UTC = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+] as const;
+
+/** "YYYY-MM-DD" → Date at midnight UTC (the storage format for term dates). */
+export function isoDateToUtc(value: string): Date {
+  return new Date(`${value}T00:00:00.000Z`);
+}
+
+/** Date → "YYYY-MM-DD" (its UTC calendar day). */
+export function formatIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Weekday of a "YYYY-MM-DD" day IN UTC → "MONDAY" .. "SUNDAY".
+ * Used to derive `day` for one-off entries so the calendar places them on
+ * the correct weekday of their `date`.
+ */
+export function weekdayOfIsoDate(value: string): string {
+  const date = isoDateToUtc(value);
+  const index = date.getUTCDay();
+  // Invalid Date → NaN index → fall back to MONDAY (never happens post-Zod).
+  return WEEKDAYS_UTC[Number.isInteger(index) ? index : 1];
+}
+
 /** "HH:MM" → minutes since midnight (for comparisons). Invalid → null. */
 export function timeToMinutes(value: string): number | null {
   if (!isValidTime(value)) return null;

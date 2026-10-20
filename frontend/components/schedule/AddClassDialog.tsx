@@ -8,12 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ClassForm, type ClassFormDefaults } from "@/components/schedule/ClassForm";
+import {
+  ClassForm,
+  classFormToPayload,
+  type ClassFormDefaults,
+  type ClassFormValues,
+} from "@/components/schedule/ClassForm";
 import { ConflictWarning } from "@/components/schedule/ConflictWarning";
 import { useCreateEntry } from "@/hooks/useCreateEntry";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useActiveScheduleStore } from "@/stores/activeScheduleStore";
-import type { Conflict, DayOfWeek, EntryPayload } from "@/types";
+import type { Conflict, DayOfWeek } from "@/types";
 
 interface AddClassDialogProps {
   open: boolean;
@@ -43,25 +48,8 @@ export function AddClassDialog({
     day: defaultDay,
   };
 
-  async function handleSubmit(values: {
-    scheduleId: string;
-    subject: string;
-    day: DayOfWeek;
-    startTime: string;
-    endTime: string;
-    instructor: string;
-    room: string;
-    notes: string;
-  }) {
-    const payload: EntryPayload = {
-      subject: values.subject,
-      day: values.day,
-      startTime: values.startTime,
-      endTime: values.endTime,
-      instructor: values.instructor || undefined,
-      room: values.room || undefined,
-      notes: values.notes || undefined,
-    };
+  async function handleSubmit(values: ClassFormValues) {
+    const payload = classFormToPayload(values);
 
     try {
       const result = await createEntry.mutateAsync({
@@ -80,9 +68,9 @@ export function AddClassDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-6 sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Add Class</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Add Event</DialogTitle>
           <DialogDescription>
-            Add a single class to your schedule. You can repeat it on other days later.
+            Add a single event to your schedule. You can repeat it on other days later.
           </DialogDescription>
         </DialogHeader>
 
@@ -91,7 +79,7 @@ export function AddClassDialog({
         <ClassForm
           schedules={schedules}
           defaultValues={defaults}
-          submitLabel="Add Class"
+          submitLabel="Add Event"
           isPending={createEntry.isPending}
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}

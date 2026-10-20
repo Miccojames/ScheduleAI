@@ -16,8 +16,9 @@ interface ScheduleCardProps {
 }
 
 /**
- * The standard class card: a tinted surface with a solid 3px left border in the
- * class colour, dark text for readability, and conflict marked with an icon.
+ * The standard class card: a soft tint of the class colour with a solid 3px
+ * left edge, text mixed toward the theme foreground so it stays readable, and
+ * conflicts marked with an amber wash plus a chip.
  */
 export function ScheduleCard({
   entry,
@@ -32,18 +33,20 @@ export function ScheduleCard({
   return (
     <Wrapper
       {...(onClick ? { type: "button" as const, onClick } : {})}
+      style={{ "--entry": entry.color } as React.CSSProperties}
       className={cn(
-        "block w-full rounded-2xl border border-gray-200 bg-white p-3 pl-4 text-left shadow-sm",
-        "border-l-[3px] transition-shadow hover:shadow-md",
-        onClick && "cursor-pointer",
+        "entry-surface group block w-full overflow-hidden rounded-xl border border-l-[3px] p-3 pl-3.5 text-left",
+        "transition-[transform,box-shadow] duration-150 ease-out",
+        onClick &&
+          "cursor-pointer hover:-translate-y-px hover:shadow-lg hover:shadow-foreground/10 active:translate-y-0 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        hasConflict && "entry-conflict",
         className,
       )}
-      style={{ borderLeftColor: entry.color, backgroundColor: `${entry.color}14` }}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="truncate text-sm font-semibold text-zinc-900">{entry.subject}</p>
+        <p className="entry-ink truncate text-sm font-semibold">{entry.subject}</p>
         {hasConflict ? (
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-conflict-soft px-1.5 py-0.5 text-[11px] font-semibold text-conflict-fg">
             <TriangleAlert className="size-3" aria-hidden="true" />
             Conflict
           </span>
@@ -51,23 +54,23 @@ export function ScheduleCard({
       </div>
 
       {!hideTime ? (
-        <p className="mt-1 text-xs font-medium text-gray-700">
+        <p className="entry-ink-soft mt-1 text-xs font-medium tabular-nums">
           {showDay ? `${entry.day.charAt(0)}${entry.day.slice(1).toLowerCase()} · ` : ""}
           {formatTimeRange(entry.startTime, entry.endTime)}
         </p>
       ) : null}
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {entry.room ? (
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="size-3.5" aria-hidden="true" />
-            {entry.room}
+          <span className="inline-flex min-w-0 items-center gap-1">
+            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{entry.room}</span>
           </span>
         ) : null}
         {entry.instructor ? (
-          <span className="inline-flex items-center gap-1">
-            <User className="size-3.5" aria-hidden="true" />
-            {entry.instructor}
+          <span className="inline-flex min-w-0 items-center gap-1">
+            <User className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{entry.instructor}</span>
           </span>
         ) : null}
       </div>

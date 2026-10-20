@@ -111,6 +111,30 @@ export function formatDate(date: Date, options?: Intl.DateTimeFormatOptions): st
   }).format(date);
 }
 
+/** "2026-08-18" → a local Date (avoids the UTC shift of new Date(string)). */
+export function parseIsoDate(iso: string): Date {
+  const [year = 1970, month = 1, day = 1] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/** "YYYY-MM-DD" → "Aug 18"; returns the raw value if it can't be parsed. */
+export function formatIsoDateLabel(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  return formatDate(parseIsoDate(iso));
+}
+
+/** Term window → "Aug 18 – Dec 12" (or a single side when one is open). */
+export function formatDateRange(startIso: string | null | undefined, endIso: string | null | undefined): string | null {
+  if (!startIso && !endIso) return null;
+  if (startIso && endIso) {
+    return startIso === endIso
+      ? formatIsoDateLabel(startIso)
+      : `${formatIsoDateLabel(startIso)} – ${formatIsoDateLabel(endIso)}`;
+  }
+  const only = (startIso ?? endIso) as string;
+  return formatIsoDateLabel(only);
+}
+
 /**
  * Minutes from `now` until the given "HH:MM" wall-clock time on the same day.
  * Negative when the time has already passed.

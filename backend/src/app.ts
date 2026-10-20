@@ -3,12 +3,15 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { env, isTest } from "./config/env.js";
+import { prisma } from "./config/prisma.js";
 import { globalLimiter } from "./middleware/rateLimit.middleware.js";
 import { originCheck } from "./middleware/origin.middleware.js";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js";
+import { httpLogger } from "./middleware/logger.middleware.js";
 import authRoutes from "./routes/auth.route.js";
 import scheduleRoutes from "./routes/schedule.route.js";
 import uploadRoutes from "./routes/upload.route.js";
+import notificationRoutes from "./routes/notification.route.js";
 
 export function createApp(): express.Express {
   const app = express();
@@ -17,6 +20,7 @@ export function createApp(): express.Express {
   app.set("trust proxy", 1);
 
   app.use(helmet());
+  app.use(httpLogger);
 
   // CORS: exact frontend origin only, credentials (cookies) allowed. Never "*".
   app.use(
@@ -41,14 +45,20 @@ export function createApp(): express.Express {
     app.use(globalLimiter);
   }
 
-  // Minimal unauthenticated health endpoint.
-  app.get("/api/health", (_req, res) => {
-    res.json({ success: true, data: { status: "ok" } });
+  // Health endpoint: liveness + DB connectivity (used by uptime monitors).
+  app.get("/api/health", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ success: true, data: { status: "ok", database: "up" } });
+    } catch {
+      res.status(503).json({ success: false, message: "Database unreachable." });
+    }
   });
 
   app.use("/api/auth", authRoutes);
   app.use("/api/schedules", scheduleRoutes);
   app.use("/api/schedule-upload", uploadRoutes);
+  app.use("/api/notifications", notificationRoutes);
 
   // 404 + central error handler last.
   app.use(notFoundHandler);

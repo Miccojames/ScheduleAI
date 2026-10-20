@@ -1,4 +1,4 @@
-import type { AnalyzeResult, RawAiEntry } from "./ocr/types.js";
+import { normalizeConfidence, type AnalyzeResult, type RawAiEntry } from "./ocr/types.js";
 import { normalizeTime } from "../utils/time.js";
 
 // Converts untrusted AI output (AnalyzeResult) into clean DetectedEntry[] for
@@ -24,6 +24,10 @@ export interface DetectedEntry {
   endTime: string | null; // "HH:MM"
   notes: string | null;
   uncertainFields: UncertainField[];
+  // Per-field confidence 0..1 (subject | day | startTime | endTime |
+  // instructor | room) passed through from the provider — absent when the
+  // provider/model returned none. The review UI highlights values < 0.75.
+  confidence?: Record<string, number>;
 }
 
 const DAY_ORDER: DayOfWeek[] = [
@@ -257,6 +261,11 @@ export function parseRawEntry(raw: RawAiEntry): DetectedEntry | null {
     uncertainFields.push("instructor");
   }
 
+  // Per-field confidence flows through unchanged for valid values
+  // (normalizeConfidence is idempotent — providers already clamp); missing or
+  // unusable input leaves the field absent rather than failing the parse.
+  const confidence = normalizeConfidence(raw.confidence);
+
   return {
     subject,
     instructor: instructorValue,
@@ -266,6 +275,7 @@ export function parseRawEntry(raw: RawAiEntry): DetectedEntry | null {
     endTime,
     notes,
     uncertainFields,
+    ...(confidence ? { confidence } : {}),
   };
 }
 

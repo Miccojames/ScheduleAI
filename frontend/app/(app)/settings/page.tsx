@@ -4,22 +4,17 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { BellRing, Info, LogOut, Save } from "lucide-react";
+import { Info, LogOut, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/common/PageHeader";
+import { ChangePasswordCard } from "@/components/settings/ChangePasswordCard";
+import { NotificationsCard } from "@/components/settings/NotificationsCard";
+import { ReminderPrefsCard } from "@/components/settings/ReminderPrefsCard";
 import { useLogout, useMe, useUpdateProfile } from "@/hooks/useAuth";
-import { REMINDER_OPTIONS, useReminderStore } from "@/stores/reminderStore";
 
 const profileSchema = z.object({
   firstName: z.string().trim().min(1, "Enter your first name."),
@@ -32,9 +27,6 @@ export default function SettingsPage() {
   const { data: user } = useMe();
   const updateProfile = useUpdateProfile();
   const logout = useLogout();
-
-  const reminderLeadMinutes = useReminderStore((state) => state.reminderLeadMinutes);
-  const setReminderLeadMinutes = useReminderStore((state) => state.setReminderLeadMinutes);
 
   const {
     register,
@@ -54,7 +46,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your profile and reminder preferences." />
+      <PageHeader title="Settings" description="Your profile, password, and notification preferences." />
 
       <div className="mx-auto max-w-2xl space-y-4">
         <Card className="rounded-2xl border-gray-200 shadow-sm">
@@ -117,38 +109,11 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-gray-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Reminder preferences</CardTitle>
-            <CardDescription>
-              How early the dashboard should warn you before a class starts.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1.5">
-              <Label htmlFor="reminder-lead">Remind me</Label>
-              <Select
-                value={String(reminderLeadMinutes)}
-                onValueChange={(value) => setReminderLeadMinutes(Number(value))}
-              >
-                <SelectTrigger id="reminder-lead" className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {REMINDER_OPTIONS.map((minutes) => (
-                    <SelectItem key={minutes} value={String(minutes)}>
-                      {minutes} minutes before
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="flex items-center gap-1.5 text-xs text-gray-500">
-                <BellRing className="size-3.5" aria-hidden="true" />
-                You&apos;ll see a reminder banner when a class is about to begin.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <ChangePasswordCard />
+
+        <ReminderPrefsCard />
+
+        <NotificationsCard />
 
         <Card className="rounded-2xl border-gray-200 shadow-sm">
           <CardHeader>

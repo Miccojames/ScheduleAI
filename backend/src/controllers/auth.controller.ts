@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { requireAuth, AUTH_COOKIE, signToken } from "../middleware/auth.middleware.js";
 import { isProduction } from "../config/env.js";
 import * as authService from "../services/auth.service.js";
-import type { LoginInput, RegisterInput, UpdateMeInput } from "../validators/auth.js";
+import type { LoginInput, RegisterInput, UpdateMeInput, ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput } from "../validators/auth.js";
 
 // Cookie options shared by set/clear. SameSite=None+Secure in production so
 // the frontend (different origin on Render) can send it cross-site; Lax in
@@ -57,6 +57,31 @@ export const updateMe = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as UpdateMeInput;
   const user = await authService.updateMe(req.user!.id, body);
   sendSuccess(res, { data: { user }, message: "Profile updated." });
+});
+
+// ── Password reset / change ────────────────────────────────────────────────
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as ForgotPasswordInput;
+  // Always returns the same generic 200 — never reveals whether the email
+  // is registered (the service deliberately returns void either way).
+  await authService.requestPasswordReset(body.email);
+  sendSuccess(res, {
+    data: null,
+    message: "If an account exists for that email, we've sent a reset link.",
+  });
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as ResetPasswordInput;
+  const user = await authService.resetPassword(body.token, body.password);
+  sendSuccess(res, { data: { user }, message: "Password updated. You can sign in now." });
+});
+
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as ChangePasswordInput;
+  await authService.changePassword(req.user!.id, body.currentPassword, body.newPassword);
+  sendSuccess(res, { data: null, message: "Password changed." });
 });
 
 // Exported so routes can mount requireAuth cleanly.

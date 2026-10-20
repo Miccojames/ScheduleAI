@@ -51,6 +51,38 @@ export const updateMeSchema = z
     message: "Provide at least one field to update",
   });
 
+// ── Password reset / change ────────────────────────────────────────────────
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string({ error: "Email is required" })
+    .trim()
+    .toLowerCase()
+    .email("Please enter a valid email address")
+    .max(254, "Email must be at most 254 characters"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string({ error: "Reset token is required" }).min(10, "Reset token is invalid"),
+  password: z
+    .string({ error: "Password is required" })
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be at most 128 characters"),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z
+    .string({ error: "Current password is required" })
+    .min(1, "Current password is required"),
+  newPassword: z
+    .string({ error: "New password is required" })
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be at most 128 characters"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

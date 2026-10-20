@@ -9,13 +9,13 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { LoadingState } from "@/components/common/LoadingState";
 import { PageHeader } from "@/components/common/PageHeader";
-import { ClassForm, type ClassFormValues } from "@/components/schedule/ClassForm";
+import { ClassForm, classFormToPayload, type ClassFormValues } from "@/components/schedule/ClassForm";
 import { ConflictWarning } from "@/components/schedule/ConflictWarning";
 import { useCreateEntry } from "@/hooks/useCreateEntry";
 import { useActiveSchedule } from "@/hooks/useSchedules";
 import { apiErrorMessage } from "@/services/api";
 import { useActiveScheduleStore } from "@/stores/activeScheduleStore";
-import type { Conflict, EntryPayload } from "@/types";
+import type { Conflict } from "@/types";
 
 export default function AddClassPage() {
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function AddClassPage() {
   if (schedules.length === 0 || !active) {
     return (
       <>
-        <PageHeader title="Add Class" />
+        <PageHeader title="Add Event" />
         <EmptyState
           icon={CalendarX2}
           title="No schedule yet."
@@ -48,15 +48,7 @@ export default function AddClassPage() {
   }
 
   async function handleSubmit(values: ClassFormValues) {
-    const payload: EntryPayload = {
-      subject: values.subject,
-      day: values.day,
-      startTime: values.startTime,
-      endTime: values.endTime,
-      instructor: values.instructor || undefined,
-      room: values.room || undefined,
-      notes: values.notes || undefined,
-    };
+    const payload = classFormToPayload(values);
 
     try {
       const result = await createEntry.mutateAsync({ scheduleId: values.scheduleId, payload });
@@ -74,8 +66,8 @@ export default function AddClassPage() {
   return (
     <>
       <PageHeader
-        title="Add Class"
-        description="Add a single class to one of your schedules."
+        title="Add Event"
+        description="Add a single event to one of your schedules."
       />
 
       <div className="mx-auto max-w-2xl space-y-4">
@@ -84,13 +76,13 @@ export default function AddClassPage() {
         {conflicts.length > 0 ? (
           <Card className="rounded-2xl border-gray-200 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Add another class</CardTitle>
+              <CardTitle className="text-base font-semibold">Add another event</CardTitle>
             </CardHeader>
             <CardContent>
               <ClassForm
                 schedules={schedules}
                 defaultValues={{ scheduleId: activeScheduleId ?? active.id }}
-                submitLabel="Add Class"
+                submitLabel="Add Event"
                 isPending={createEntry.isPending}
                 onSubmit={handleSubmit}
               />
@@ -103,7 +95,7 @@ export default function AddClassPage() {
                 key={savedCount}
                 schedules={schedules}
                 defaultValues={{ scheduleId: activeScheduleId ?? active.id }}
-                submitLabel="Add Class"
+                submitLabel="Add Event"
                 isPending={createEntry.isPending}
                 onSubmit={handleSubmit}
                 onCancel={() => router.back()}
@@ -115,7 +107,7 @@ export default function AddClassPage() {
         {createEntry.isPending ? (
           <p className="flex items-center justify-center gap-2 text-xs text-gray-500">
             <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-            Saving your class…
+            Saving your event…
           </p>
         ) : null}
       </div>

@@ -1,9 +1,16 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
-import { ConflictError, UnauthorizedError } from "../utils/errors.js";
-import type { LoginInput, RegisterInput, UpdateMeInput } from "../validators/auth.js";
+import { BadRequestError, ConflictError, UnauthorizedError } from "../utils/errors.js";
+import { generateRawToken, hashToken } from "../utils/tokens.js";
+import { sendPasswordResetEmail } from "./email.service.js";
+import type {
+  LoginInput,
+  RegisterInput,
+  UpdateMeInput,
+} from "../validators/auth.js";
 
 const BCRYPT_ROUNDS = 10;
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 // Public user shape returned by the API (never includes passwordHash).
 export interface PublicUser {
@@ -78,4 +85,93 @@ export async function updateMe(userId: string, input: UpdateMeInput): Promise<Pu
   if (input.lastName !== undefined) data.lastName = input.lastName.trim();
   const user = await prisma.user.update({ where: { id: userId }, data });
   return toPublicUser(user);
+}
+
+/**
+ * Start a password reset. ALWAYS resolves without revealing whether the
+ * account exists (no account enumeration) — the same generic response is
+ * returned either way, and email failures are logged but never thrown.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: normalized, mode: "insensitive" } },
+  });
+  if (!user) return; // silently do nothing — same observable behavior as success
+
+  // One live token at a time: drop any prior unused tokens before minting.
+  await prisma.passwordResetToken.deleteMany({
+    where: { userId: user.id, usedAt: null },
+  });
+
+  const rawToken = generateRawToken();
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
+  });
+
+  // Fire-and-forget style: sendPasswordResetEmail never throws, but we still
+  // await so the dev-mode console output lands before the response.
+  await sendPasswordResetEmail(user.email, rawToken);
+}
+
+/**
+ * Consume a raw reset token and set the new password. Single-use: the token
+ * is marked used and every other outstanding token for the user is revoked
+ * inside one transaction.
+ */
+export async function resetPassword(
+  rawToken: string,
+  newPassword: string
+): Promise<PublicUser> {
+  const tokenHash = hashToken(rawToken);
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+
+  if (!record || record.usedAt !== null || record.expiresAt <= new Date()) {
+    throw new BadRequestError("This reset link is invalid or has expired.");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  const user = await prisma.$transaction(async (tx) => {
+    await tx.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
+    const updated = await tx.user.update({
+      where: { id: record.userId },
+      data: { passwordHash },
+    });
+    // Invalidate any other still-pending tokens for this user.
+    await tx.passwordResetToken.deleteMany({
+      where: { userId: record.userId, usedAt: null },
+    });
+    return updated;
+  });
+
+  return toPublicUser(user);
+}
+
+/**
+ * Change password for a signed-in user. Requires the current password
+ * (same single generic-ish error pattern as authenticateUser).
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new UnauthorizedError("Authentication required");
+
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) throw new UnauthorizedError("Your current password is incorrect.");
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }

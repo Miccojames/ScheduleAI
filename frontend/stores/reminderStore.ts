@@ -9,7 +9,12 @@ interface ReminderState {
   setReminderLeadMinutes: (minutes: number) => void;
 }
 
-/** How early the dashboard starts warning about an upcoming class. */
+/**
+ * Local cache of the reminder lead time. The source of truth is
+ * GET/PUT /api/notifications/prefs — the settings page hydrates this store
+ * when the server prefs arrive, and the dashboard keeps reading the same
+ * `reminderLeadMinutes` selector in the meantime.
+ */
 export const useReminderStore = create<ReminderState>()(
   persist(
     (set) => ({
