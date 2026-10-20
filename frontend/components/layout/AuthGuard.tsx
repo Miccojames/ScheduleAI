@@ -24,15 +24,21 @@ function AuthSkeleton() {
  */
 export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { isPending, isError, error, refetch } = useMe();
+  const { isPending, isError, error, refetch, isLoggedOut } = useMe();
 
   useEffect(() => {
+    // No session at all → straight to the login screen (no request, no 401).
+    if (isLoggedOut) {
+      router.replace("/login");
+      return;
+    }
     if (isError) {
       const status = error instanceof ApiError ? error.status : 500;
       if (status === 401) router.replace("/login");
     }
-  }, [error, isError, router]);
+  }, [error, isError, isLoggedOut, router]);
 
+  if (isLoggedOut) return <AuthSkeleton />;
   if (isPending) return <AuthSkeleton />;
 
   if (isError) {

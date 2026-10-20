@@ -1,4 +1,5 @@
 import type { ApiEnvelope } from "@/types";
+import { clearSessionHint } from "@/lib/session";
 
 /**
  * Where the API lives.
@@ -36,6 +37,9 @@ export function registerQueryClient(client: { clear: () => void }): void {
 
 function handleUnauthorized(): void {
   if (typeof window === "undefined") return;
+  // The session is gone (expired or revoked) — drop the hint so we stop
+  // probing for a user that no longer exists.
+  clearSessionHint();
   queryClientRef?.clear();
   if (!window.location.pathname.startsWith("/login")) {
     window.location.replace("/login");

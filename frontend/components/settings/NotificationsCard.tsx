@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Bell, Loader2 } from "lucide-react";
+import { AlertTriangle, Bell, Loader2, RefreshCw, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,21 @@ export function NotificationsCard() {
   const [enabled, setEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [testing, setTesting] = useState(false);
+  /** Bumped by "I added it — check again" to re-run the support detection. */
+  const [checkNonce, setCheckNonce] = useState(0);
+
+  // iOS only exposes the Push API to INSTALLED home-screen web apps
+  // (iOS 16.4+) — never to a plain Safari tab. Detect that case so the card
+  // can explain the fix instead of showing a dead end.
+  const isIos =
+    typeof navigator !== "undefined" &&
+    (/iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+  const isStandalone =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true);
+  const needsIosInstall = isIos && !isStandalone;
 
   // Already-subscribed browsers show as enabled on load (permission granted +
   // an active push subscription for this origin).
@@ -63,12 +78,15 @@ export function NotificationsCard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [checkNonce]);
 
   const busy =
     subscribeMutation.isPending || unsubscribeMutation.isPending || updatePrefs.isPending;
   const vapidConfigured = prefs ? prefs.vapidConfigured : false;
-  const toggleDisabled = !ready || busy || prefsPending || !vapidConfigured;
+  // No push support in this browser (e.g. iPhone Safari, or iOS before the
+  // app is installed) → the toggle stays off and the card explains why.
+  const toggleDisabled =
+    !ready || busy || prefsPending || !vapidConfigured || !isPushSupported();
 
   async function turnOn() {
     if (!isPushSupported()) {
@@ -221,11 +239,39 @@ export function NotificationsCard() {
           </button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {ready && !isPushSupported()
-            ? "This browser doesn't support notifications."
-            : "Your browser will ask for permission the first time you turn this on."}
-        </p>
+        {ready && needsIosInstall ? (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-800 dark:text-amber-200">
+            <p className="flex items-center gap-1.5 font-semibold">
+              <Smartphone className="size-4" aria-hidden="true" />
+              On iPhone, add ScheduleAI to your Home Screen
+            </p>
+            <ol className="mt-1.5 list-decimal space-y-0.5 pl-5 text-xs">
+              <li>Open this site in Safari and tap the Share button.</li>
+              <li>Choose &quot;Add to Home Screen&quot; → Add.</li>
+              <li>Open ScheduleAI from your Home Screen (not the browser tab).</li>
+            </ol>
+            <p className="mt-1.5 text-xs">
+              iOS only allows notifications for installed apps — once ScheduleAI is on your
+              Home Screen, the toggle below works.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => setCheckNonce((value) => value + 1)}
+            >
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+              I added it — check again
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {ready && !isPushSupported()
+              ? "This browser doesn't support notifications."
+              : "Your browser will ask for permission the first time you turn this on."}
+          </p>
+        )}
 
         {enabled ? (
           <Button

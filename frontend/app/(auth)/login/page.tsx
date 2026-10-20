@@ -24,17 +24,31 @@ type LoginValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const login = useLogin();
-  const { data: user, isPending: checkingSession } = useMe();
+  const { data: user, isCheckingSession: checkingSession } = useMe();
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  // Just registered? The email is handed over so the field is pre-filled.
+  useEffect(() => {
+    try {
+      const email = window.sessionStorage.getItem("scheduleai:registeredEmail");
+      if (email) {
+        setValue("email", email);
+        window.sessionStorage.removeItem("scheduleai:registeredEmail");
+      }
+    } catch {
+      // Storage unavailable (private mode) — the field just stays empty.
+    }
+  }, [setValue]);
 
   useEffect(() => {
     if (user) router.replace("/dashboard");

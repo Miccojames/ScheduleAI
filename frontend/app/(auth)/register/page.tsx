@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMe, useRegister } from "@/hooks/useAuth";
+import { useRegister } from "@/hooks/useAuth";
 import { ApiError } from "@/services/api";
 
 const registerSchema = z.object({
@@ -24,9 +23,7 @@ const registerSchema = z.object({
 type RegisterValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const router = useRouter();
   const registerUser = useRegister();
-  const { data: user } = useMe();
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -38,9 +35,8 @@ export default function RegisterPage() {
     defaultValues: { firstName: "", lastName: "", email: "", password: "" },
   });
 
-  useEffect(() => {
-    if (user) router.replace("/dashboard");
-  }, [user, router]);
+  // No auto-redirect to the dashboard: registering creates the account, then
+  // the login screen takes over (with the email pre-filled).
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);

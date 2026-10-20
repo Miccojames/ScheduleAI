@@ -108,10 +108,29 @@ UID_A=$(json_get "$TMPDIR_SMOKE/reg_a.json" "d['data']['user']['id']")
   && check "POST /api/auth/register → 201 + user.id" 0 \
   || check "POST /api/auth/register → 201 + user.id (got $HTTP, success=$OK)" 1
 
-# Cookie jar must contain the session cookie
+# Registration must NOT sign the user in (they sign in from the login screen).
 grep -q "scheduleai_token" "$JAR_A" \
-  && check "register sets scheduleai_token cookie" 0 \
-  || check "register sets scheduleai_token cookie" 1
+  && check "register sets NO session cookie" 1 \
+  || check "register sets NO session cookie" 0
+
+HTTP=$(curl -s -b "$JAR_A" -o "$TMPDIR_SMOKE/me_a.json" -w "%{http_code}" "$BASE_URL/api/auth/me")
+[ "$HTTP" = "401" ] \
+  && check "GET /api/auth/me without a session → 401" 0 \
+  || check "GET /api/auth/me without a session → 401 (got $HTTP)" 1
+
+# Sign in for real now: the cookie jar must carry the session + the hint.
+HTTP=$(curl -s -b "$JAR_A" -c "$JAR_A" -o "$TMPDIR_SMOKE/login_a.json" -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD\"}" \
+  "$BASE_URL/api/auth/login")
+
+grep -q "scheduleai_token" "$JAR_A" \
+  && check "login sets scheduleai_token cookie" 0 \
+  || check "login sets scheduleai_token cookie" 1
+
+grep -q "scheduleai_hint" "$JAR_A" \
+  && check "login sets the readable session-hint cookie" 0 \
+  || check "login sets the readable session-hint cookie" 1
 
 HTTP=$(curl -s -b "$JAR_A" -o "$TMPDIR_SMOKE/me_a.json" -w "%{http_code}" "$BASE_URL/api/auth/me")
 ME_ID=$(json_get "$TMPDIR_SMOKE/me_a.json" "d['data']['user']['id']")
@@ -211,6 +230,14 @@ HTTP=$(curl -s -c "$JAR_B" -o "$TMPDIR_SMOKE/reg_b.json" -w "%{http_code}" \
   -d "{\"firstName\":\"Other\",\"lastName\":\"User\",\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD\"}" \
   "$BASE_URL/api/auth/register")
 [ "$HTTP" = "201" ] && check "register user B → 201" 0 || check "register user B → 201 (got $HTTP)" 1
+
+# Registering no longer signs anyone in — log B in so the isolation checks
+# below run as an AUTHENTICATED other user (404, not 401).
+HTTP=$(curl -s -b "$JAR_B" -c "$JAR_B" -o "$TMPDIR_SMOKE/login_b.json" -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD\"}" \
+  "$BASE_URL/api/auth/login")
+[ "$HTTP" = "200" ] && check "login user B → 200" 0 || check "login user B → 200 (got $HTTP)" 1
 
 # B reading A's schedule → 404 (no existence leak)
 HTTP=$(curl -s -b "$JAR_B" -o "$TMPDIR_SMOKE/b_sched.json" -w "%{http_code}" \

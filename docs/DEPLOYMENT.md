@@ -148,7 +148,6 @@ Note: the first request may take ~30 s while the free service wakes up.
 ---
 
 ## Free-tier caveats (and their workarounds)
-
 ### 😴 The backend sleeps after ~15 minutes of inactivity
 Free Render instances spin down when unused. The **first request after a nap
 takes ~30 seconds** (the browser may show a "loading" state — that's it waking up).

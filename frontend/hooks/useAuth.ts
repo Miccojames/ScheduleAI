@@ -14,18 +14,36 @@ import {
   type UpdateProfileInput,
 } from "@/services/auth.api";
 import type { User } from "@/types";
+import { clearSessionHint, hasSessionHint } from "@/lib/session";
 
 export const authKeys = {
   me: ["auth", "me"] as const,
 };
 
+/**
+ * The signed-in user.
+ *
+ * The probe is SKIPPED entirely when the server says there is no session
+ * (the readable `scheduleai_hint` cookie is absent) — anonymous visitors
+ * never fire a request, so the console stays free of 401 noise.
+ */
 export function useMe() {
-  return useQuery({
+  const enabled = hasSessionHint();
+  const query = useQuery({
     queryKey: authKeys.me,
     queryFn: async () => (await authApi.me()).user,
     retry: false,
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
+
+  return {
+    ...query,
+    /** No session (the probe wasn't even made). */
+    isLoggedOut: !enabled,
+    /** The probe is in flight — only possible when a session may exist. */
+    isCheckingSession: enabled && query.isPending,
+  };
 }
 
 export function useLogin() {
@@ -35,6 +53,8 @@ export function useLogin() {
   return useMutation({
     mutationFn: (input: LoginInput) => authApi.login(input),
     onSuccess: async () => {
+      // The server set the session cookie + the readable hint; the query is
+      // now enabled and refetches the fresh user.
       await queryClient.invalidateQueries({ queryKey: authKeys.me });
       toast.success("Signed in.");
       router.push("/dashboard");
@@ -48,10 +68,17 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: (input: RegisterInput) => authApi.register(input),
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
+      // Registration no longer signs you in — hand the email to the login
+      // screen (pre-filled) so the user signs in explicitly.
+      try {
+        window.sessionStorage.setItem("scheduleai:registeredEmail", variables.email);
+      } catch {
+        // Private mode / storage disabled — the login form just starts empty.
+      }
       await queryClient.invalidateQueries({ queryKey: authKeys.me });
-      toast.success("Welcome to ScheduleAI!");
-      router.push("/dashboard");
+      toast.success("Account created — sign in to continue.");
+      router.push("/login");
     },
   });
 }
@@ -63,6 +90,8 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => authApi.logout(),
     onSettled: () => {
+      // Drop the local hint too, so the app stops probing for a session.
+      clearSessionHint();
       queryClient.clear();
       toast.success("Signed out.");
       router.push("/login");

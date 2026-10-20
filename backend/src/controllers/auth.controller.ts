@@ -19,12 +19,28 @@ function cookieOptions() {
   };
 }
 
+// A READABLE companion cookie (no secret — just the fact that a session
+// exists). The SPA uses it to decide whether the /api/auth/me probe is
+// worth making at all: anonymous visitors then never fire a request, so
+// the browser console stays free of 401 noise.
+export const SESSION_HINT_COOKIE = "scheduleai_hint";
+
+function hintCookieOptions() {
+  return {
+    httpOnly: false, // must be readable by the SPA
+    secure: isProduction,
+    sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+}
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as RegisterInput;
   const user = await authService.registerUser(body);
-  // Log the user in immediately after registration (set the session cookie).
-  const token = signToken(user.id);
-  res.cookie(AUTH_COOKIE, token, cookieOptions());
+  // No session cookie here: the user signs in from the login screen after
+  // registering (a deliberate flow choice — the account is created, then
+  // the login form is shown with the email pre-filled).
   sendSuccess(res, { data: { user }, message: "Account created successfully.", status: 201 });
 });
 
@@ -33,6 +49,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const user = await authService.authenticateUser(body);
   const token = signToken(user.id);
   res.cookie(AUTH_COOKIE, token, cookieOptions());
+  res.cookie(SESSION_HINT_COOKIE, "1", hintCookieOptions());
   sendSuccess(res, { data: { user }, message: "Logged in successfully." });
 });
 
@@ -40,6 +57,7 @@ export const logout = asyncHandler(async (_req: Request, res: Response) => {
   // clearCookie must mirror the set-cookie attributes (path, sameSite, secure)
   // so the browser actually removes it.
   res.clearCookie(AUTH_COOKIE, { ...cookieOptions(), maxAge: undefined });
+  res.clearCookie(SESSION_HINT_COOKIE, { ...hintCookieOptions(), maxAge: undefined });
   sendSuccess(res, { data: null, message: "Logged out successfully." });
 });
 
