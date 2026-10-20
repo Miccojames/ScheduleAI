@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 
 function AuthSkeleton() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
+    <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3" role="status" aria-live="polite">
         <span className="size-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
         <p className="text-sm text-muted-foreground">Checking your session…</p>

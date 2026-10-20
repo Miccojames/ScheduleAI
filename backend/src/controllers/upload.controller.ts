@@ -29,7 +29,7 @@ export const upload = asyncHandler(async (req: Request, res: Response) => {
   }
   if (file.size > MAX_FILE_SIZE) {
     fs.rmSync(file.path, { force: true });
-    sendError(res, { status: 413, message: "File is too large. The maximum size is 8MB." });
+    sendError(res, { status: 413, message: "File is too large. The maximum size is 4MB." });
     return;
   }
   if (!isAllowedMime(file.mimetype)) {

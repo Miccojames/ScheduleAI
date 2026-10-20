@@ -1,7 +1,12 @@
 import { api, ApiError } from "@/services/api";
 import type { DetectedEntry, Upload, UploadRecord } from "@/types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+// Same origin in production (Vercel proxies /api/* to the API — see
+// next.config.ts); the local API in development. See services/api.ts.
+const BASE =
+  process.env.NODE_ENV === "production"
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000");
 
 export type ExtractionProvider = "gemini" | "mock";
 

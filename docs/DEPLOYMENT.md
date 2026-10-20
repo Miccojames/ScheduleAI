@@ -90,12 +90,20 @@ Then add the same env vars under **Environment**.
 2. Import `Miccojames/ScheduleAI`.
 3. **Project settings → Root Directory:** `frontend`
 4. **Environment Variables → Add:**
-   - Name: `NEXT_PUBLIC_API_URL`
-   - Value: `https://scheduleai-api.onrender.com` ← your Render URL from Step 2
+   - Name: `API_PROXY_TARGET`
+   - Value: `https://scheduleai-zflz.onrender.com` ← your Render URL (or leave
+     it unset — that URL is the built-in default)
+   - *(no `NEXT_PUBLIC_API_URL` needed — the frontend calls the **same origin**
+     and Vercel proxies `/api/*` to the API. That keeps the auth cookie
+     first-party, which iOS Safari requires: without it, login on an iPhone
+     silently fails and bounces back to the login page.)*
 5. **Deploy**.
 
 > ⚠️ `NEXT_PUBLIC_*` variables are **inlined at build time**. If you ever change
 > this value later, redeploy (Vercel → Deployments → ⋯ → Redeploy) for it to apply.
+
+> 📦 **Upload limit is 4 MB** (not 8 MB): the Vercel proxy caps request bodies
+> at 4.5 MB. Phone photos are typically 1–3 MB, so this is comfortable.
 
 Your app is now at `https://<your-app>.vercel.app`.
 

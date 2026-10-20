@@ -34,7 +34,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      sendError(res, { status: 413, message: "File is too large. The maximum size is 8MB." });
+      sendError(res, { status: 413, message: "File is too large. The maximum size is 4MB." });
       return;
     }
     if (err.code === "LIMIT_UNEXPECTED_FILE") {

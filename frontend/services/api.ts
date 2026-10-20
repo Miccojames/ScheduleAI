@@ -1,6 +1,18 @@
 import type { ApiEnvelope } from "@/types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+/**
+ * Where the API lives.
+ *
+ * - Production: SAME origin ("") — Vercel proxies /api/* to the Render API
+ *   (see next.config.ts). That keeps the auth cookie first-party, which iOS
+ *   Safari otherwise refuses to store for a third-party origin (login would
+ *   loop back to /login).
+ * - Development: the local API on :5000 (override with NEXT_PUBLIC_API_URL).
+ */
+const BASE =
+  process.env.NODE_ENV === "production"
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000");
 
 /** Error thrown for every non-2xx response, carrying the backend message. */
 export class ApiError extends Error {
@@ -39,6 +51,24 @@ interface ApiRequestOptions extends Omit<RequestInit, "body"> {
 }
 
 /**
+ * The free hosting tier sleeps when idle, and the FIRST request to a
+ * sleeping instance comes back 503 while it boots (the retry succeeds).
+ * Retry once after a short pause so a cold start never looks like a broken
+ * login on a phone.
+ */
+const WAKE_UP_RETRY_DELAY_MS = 2_500;
+
+async function fetchWithWakeUpRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const response = await fetch(url, init);
+  if (response.status !== 503) return response;
+  await new Promise((resolve) => setTimeout(resolve, WAKE_UP_RETRY_DELAY_MS));
+  return fetch(url, init);
+}
+
+/**
  * Single entry point for talking to the backend.
  * Always sends the httpOnly auth cookie and unwraps the `{ success, data }`
  * envelope so callers work with plain data.
@@ -56,7 +86,7 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
     payload = JSON.stringify(body);
   }
 
-  const response = await fetch(`${BASE}${path}`, {
+  const response = await fetchWithWakeUpRetry(`${BASE}${path}`, {
     ...rest,
     credentials: "include",
     headers: requestHeaders,

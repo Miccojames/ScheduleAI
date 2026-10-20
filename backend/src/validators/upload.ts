@@ -1,7 +1,7 @@
 // Upload validation is enforced in middleware (multer limits + magic-byte
 // sniffing), so this module only holds the shared constants.
 export const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
-export const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8MB
+export const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB (Vercel's proxy caps request bodies at 4.5MB)
 
 export type AllowedMime = (typeof ALLOWED_MIME_TYPES)[number];
 

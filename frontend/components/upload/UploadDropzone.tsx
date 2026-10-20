@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { cn } from "cn";
 
 export const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-export const MAX_FILE_SIZE = 8 * 1024 * 1024;
+export const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 interface UploadDropzoneProps {
   file: File | null;
@@ -25,7 +25,7 @@ function validateFile(file: File): string | null {
     return "That file is empty. Please choose another image.";
   }
   if (file.size > MAX_FILE_SIZE) {
-    return "That image is larger than 8MB. Please upload a smaller one.";
+    return "That image is larger than 4MB. Please upload a smaller one.";
   }
   return null;
 }
@@ -117,7 +117,7 @@ export function UploadDropzone({ file, onFileChange, disabled = false }: UploadD
           <UploadCloud className="size-6" aria-hidden="true" />
         </span>
         <p className="mt-4 text-sm font-medium text-foreground">Drag an image here</p>
-        <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG or WebP · up to 8MB</p>
+        <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG or WebP · up to 4MB</p>
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={disabled}>
