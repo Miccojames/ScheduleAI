@@ -58,17 +58,17 @@ export default function RegisterPage() {
   });
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-xl font-semibold tracking-tight">Create your account</CardTitle>
-        <CardDescription>Start scanning your class schedule in seconds.</CardDescription>
+        <CardDescription>Start planning your whole week in seconds.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           {formError ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700"
+              className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
             >
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>{formError}</span>
@@ -86,7 +86,7 @@ export default function RegisterPage() {
                 {...register("firstName")}
               />
               {errors.firstName ? (
-                <p className="text-xs text-rose-600">{errors.firstName.message}</p>
+                <p className="text-xs text-destructive">{errors.firstName.message}</p>
               ) : null}
             </div>
             <div className="space-y-1.5">
@@ -99,7 +99,7 @@ export default function RegisterPage() {
                 {...register("lastName")}
               />
               {errors.lastName ? (
-                <p className="text-xs text-rose-600">{errors.lastName.message}</p>
+                <p className="text-xs text-destructive">{errors.lastName.message}</p>
               ) : null}
             </div>
           </div>
@@ -114,7 +114,7 @@ export default function RegisterPage() {
               aria-invalid={Boolean(errors.email)}
               {...register("email")}
             />
-            {errors.email ? <p className="text-xs text-rose-600">{errors.email.message}</p> : null}
+            {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
           </div>
 
           <div className="space-y-1.5">
@@ -129,7 +129,7 @@ export default function RegisterPage() {
               {...register("password")}
             />
             {errors.password ? (
-              <p id="password-error" className="text-xs text-rose-600">
+              <p id="password-error" className="text-xs text-destructive">
                 {errors.password.message}
               </p>
             ) : null}
@@ -147,9 +147,9 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link href="/login" className="font-medium text-primary hover:text-primary">
             Sign in
           </Link>
         </p>

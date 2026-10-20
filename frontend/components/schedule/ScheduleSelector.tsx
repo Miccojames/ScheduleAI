@@ -42,7 +42,7 @@ export function ScheduleSelector({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl border border-border bg-card p-4">
       <Label htmlFor="review-schedule">Save into</Label>
       <Select value={value ?? ""} onValueChange={onChange}>
         <SelectTrigger id="review-schedule" className="mt-1.5 w-full">
@@ -60,7 +60,7 @@ export function ScheduleSelector({
 
       {isNew ? (
         <div className="mt-3">
-          <Label htmlFor="new-schedule-name" className="text-xs text-gray-500">
+          <Label htmlFor="new-schedule-name" className="text-xs text-muted-foreground">
             Schedule name
           </Label>
           <div className="mt-1.5 flex items-center gap-2">

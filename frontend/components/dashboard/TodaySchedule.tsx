@@ -18,7 +18,7 @@ export function TodaySchedule({ entries, now }: TodayScheduleProps) {
   return (
     <Card className="rounded-2xl border-border bg-card shadow-sm">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base font-semibold">{"Today's Schedule"}</CardTitle>
+        <CardTitle className="text-base font-semibold">{"Today's Plan"}</CardTitle>
       </CardHeader>
       <CardContent>
         {sorted.length === 0 ? (

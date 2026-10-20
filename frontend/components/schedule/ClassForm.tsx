@@ -144,7 +144,7 @@ export function ClassForm({
         name="kind"
         render={({ field }) => (
           <fieldset className="min-w-0">
-            <legend className="mb-1.5 text-sm font-medium text-gray-900">
+            <legend className="mb-1.5 text-sm font-medium text-foreground">
               Event type
             </legend>
             <div
@@ -164,14 +164,14 @@ export function ClassForm({
                       "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1 focus-within:ring-offset-background",
                       selected
                         ? "shadow-sm"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900",
+                        : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground",
                     )}
                     style={
                       selected
                         ? {
                             backgroundColor: `${meta.defaultColor}1A`,
                             borderColor: meta.defaultColor,
-                            color: meta.defaultColor,
+                            color: `color-mix(in srgb, ${meta.defaultColor} 78%, var(--foreground))`,
                           }
                         : undefined
                     }
@@ -195,7 +195,7 @@ export function ClassForm({
                 );
               })}
             </div>
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {KIND_META[field.value ?? "class"].description}
             </p>
           </fieldset>
@@ -224,7 +224,7 @@ export function ClassForm({
             )}
           />
           {errors.scheduleId ? (
-            <p className="text-xs text-rose-600">{errors.scheduleId.message}</p>
+            <p className="text-xs text-destructive">{errors.scheduleId.message}</p>
           ) : null}
         </div>
       ) : null}
@@ -238,11 +238,11 @@ export function ClassForm({
           {...register("subject")}
         />
         {errors.subject ? (
-          <p className="text-xs text-rose-600">{errors.subject.message}</p>
+          <p className="text-xs text-destructive">{errors.subject.message}</p>
         ) : null}
       </div>
 
-      <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/60 p-3">
         <input
           id="isOneOff"
           type="checkbox"
@@ -254,7 +254,7 @@ export function ClassForm({
           <Label htmlFor="isOneOff" className="cursor-pointer">
             One-time event
           </Label>
-          <p id="isOneOff-hint" className="mt-0.5 text-xs text-gray-500">
+          <p id="isOneOff-hint" className="mt-0.5 text-xs text-muted-foreground">
             Happens once on a specific date (exam, deadline) instead of every week.
           </p>
         </div>
@@ -270,7 +270,7 @@ export function ClassForm({
             {...register("date")}
           />
           {errors.date ? (
-            <p className="text-xs text-rose-600">{errors.date.message}</p>
+            <p className="text-xs text-destructive">{errors.date.message}</p>
           ) : null}
         </div>
       ) : (
@@ -294,7 +294,7 @@ export function ClassForm({
               </Select>
             )}
           />
-          {errors.day ? <p className="text-xs text-rose-600">{errors.day.message}</p> : null}
+          {errors.day ? <p className="text-xs text-destructive">{errors.day.message}</p> : null}
         </div>
       )}
 
@@ -309,7 +309,7 @@ export function ClassForm({
             {...register("startTime")}
           />
           {errors.startTime ? (
-            <p className="text-xs text-rose-600">{errors.startTime.message}</p>
+            <p className="text-xs text-destructive">{errors.startTime.message}</p>
           ) : null}
         </div>
         <div className="space-y-1.5">
@@ -322,7 +322,7 @@ export function ClassForm({
             {...register("endTime")}
           />
           {errors.endTime ? (
-            <p className="text-xs text-rose-600">{errors.endTime.message}</p>
+            <p className="text-xs text-destructive">{errors.endTime.message}</p>
           ) : null}
         </div>
       </div>

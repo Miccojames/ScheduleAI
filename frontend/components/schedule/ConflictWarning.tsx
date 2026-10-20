@@ -31,17 +31,17 @@ export function ConflictWarning({
     <div
       role="alert"
       className={cn(
-        "rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950",
+        "rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-900 dark:text-amber-200",
         className,
       )}
     >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300">
           <TriangleAlert className="size-4" aria-hidden="true" />
         </span>
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">⚠️ Schedule Conflict</h3>
-          <p className="mt-0.5 text-sm text-amber-900">These classes overlap.</p>
+          <p className="mt-0.5 text-sm text-amber-900 dark:text-amber-200">These classes overlap.</p>
           <ul className="mt-2.5 space-y-1 text-sm">
             {conflicts.map((conflict, index) => (
               <li key={`${conflict.a.id}-${conflict.b.id}-${index}`} className="flex flex-col">
@@ -53,7 +53,7 @@ export function ConflictWarning({
           {actionHref ? (
             <Link
               href={actionHref}
-              className="mt-3 inline-block text-sm font-medium text-amber-900 underline underline-offset-4 hover:text-amber-950"
+              className="mt-3 inline-block text-sm font-medium text-amber-900 dark:text-amber-200 underline underline-offset-4 hover:text-amber-900 dark:text-amber-200"
             >
               {actionLabel}
             </Link>

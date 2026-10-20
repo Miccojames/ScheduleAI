@@ -105,7 +105,7 @@ interface ScheduleReviewTableProps {
 
 function FieldError({ children }: { children?: string }) {
   if (!children) return null;
-  return <p className="mt-1 text-xs text-rose-600">{children}</p>;
+  return <p className="mt-1 text-xs text-destructive">{children}</p>;
 }
 
 const UNCERTAIN_TOOLTIP = "AI unsure — please verify";
@@ -134,7 +134,7 @@ function UncertainFieldWrapper({
 }
 
 const uncertainInputClass =
-  "border-amber-300 bg-amber-50/70 focus-visible:ring-amber-300 aria-invalid:border-rose-400";
+  "border-amber-500/40 bg-amber-500/10 focus-visible:ring-amber-300 aria-invalid:border-rose-400";
 
 /** Stacked cards on phones, a compact grid on desktop — one row per class. */
 export function ScheduleReviewTable({ rows, onChange, demoMode = false }: ScheduleReviewTableProps) {
@@ -177,9 +177,9 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
       {hasUncertainRows ? (
         <div
           role="status"
-          className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+          className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200"
         >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
           <p>Some fields look uncertain — review the highlighted ones before saving.</p>
         </div>
       ) : null}
@@ -197,20 +197,20 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
           <div
             key={row.id}
             className={cn(
-              "rounded-2xl border bg-white p-4",
-              row.needsReview ? "border-amber-200" : "border-gray-200",
+              "rounded-2xl border bg-card p-4",
+              row.needsReview ? "border-amber-500/30" : "border-border",
             )}
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500">Class</span>
+                <span className="text-xs font-semibold text-muted-foreground">Class</span>
                 {demoMode ? (
-                  <span className="inline-flex items-center rounded-full border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                  <span className="inline-flex items-center rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
                     ⚠ Demo data
                   </span>
                 ) : null}
                 {row.needsReview ? (
-                  <Badge className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-50">
+                  <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 hover:bg-amber-500/10">
                     <AlertTriangle className="size-3" aria-hidden="true" />
                     Needs review
                   </Badge>
@@ -220,7 +220,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Remove class ${row.subject || "entry"}`}
-                className="text-gray-400 hover:text-rose-600"
+                className="text-muted-foreground hover:text-destructive"
                 onClick={() => setPendingDelete(row.id)}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
@@ -229,7 +229,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
 
             <div className="grid gap-3 md:grid-cols-12">
               <div className="md:col-span-4">
-                <Label htmlFor={`${row.id}-subject`} className="text-xs text-gray-500">
+                <Label htmlFor={`${row.id}-subject`} className="text-xs text-muted-foreground">
                   Subject
                 </Label>
                 <UncertainFieldWrapper uncertain={subjectUncertain}>
@@ -247,7 +247,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
               </div>
 
               <div className="md:col-span-4">
-                <Label htmlFor={`${row.id}-start`} className="text-xs text-gray-500">
+                <Label htmlFor={`${row.id}-start`} className="text-xs text-muted-foreground">
                   Start time
                 </Label>
                 <UncertainFieldWrapper uncertain={startUncertain}>
@@ -264,7 +264,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
               </div>
 
               <div className="md:col-span-4">
-                <Label htmlFor={`${row.id}-end`} className="text-xs text-gray-500">
+                <Label htmlFor={`${row.id}-end`} className="text-xs text-muted-foreground">
                   End time
                 </Label>
                 <UncertainFieldWrapper uncertain={endUncertain}>
@@ -283,12 +283,12 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
               </div>
 
               <div className="md:col-span-12">
-                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   Days
                   {daysUncertain ? (
                     <span
                       title={UNCERTAIN_TOOLTIP}
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-px text-[11px] font-medium text-amber-800"
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-px text-[11px] font-medium text-amber-800 dark:text-amber-200"
                     >
                       <AlertTriangle className="size-3" aria-hidden="true" />
                       AI unsure — please verify
@@ -307,8 +307,8 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
                         className={cn(
                           "min-h-9 rounded-lg border px-2.5 text-xs font-medium transition-colors",
                           selected
-                            ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-                            : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50",
+                            ? "border-indigo-600 bg-accent text-primary"
+                            : "border-border bg-card text-muted-foreground hover:bg-muted",
                         )}
                       >
                         {shortLabel(day)}
@@ -322,7 +322,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
               </div>
 
               <div className="md:col-span-6">
-                <Label htmlFor={`${row.id}-room`} className="text-xs text-gray-500">
+                <Label htmlFor={`${row.id}-room`} className="text-xs text-muted-foreground">
                   Room
                 </Label>
                 <UncertainFieldWrapper uncertain={roomUncertain}>
@@ -338,7 +338,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
               </div>
 
               <div className="md:col-span-6">
-                <Label htmlFor={`${row.id}-instructor`} className="text-xs text-gray-500">
+                <Label htmlFor={`${row.id}-instructor`} className="text-xs text-muted-foreground">
                   Instructor
                 </Label>
                 <UncertainFieldWrapper uncertain={instructorUncertain}>
@@ -354,7 +354,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
               </div>
 
               <div className="md:col-span-12">
-                <Label htmlFor={`${row.id}-notes`} className="text-xs text-gray-500">
+                <Label htmlFor={`${row.id}-notes`} className="text-xs text-muted-foreground">
                   Notes
                 </Label>
                 <Textarea
@@ -390,7 +390,7 @@ export function ScheduleReviewTable({ rows, onChange, demoMode = false }: Schedu
 
 export function ReviewHint() {
   return (
-    <p className="flex items-start gap-2 text-xs text-gray-500">
+    <p className="flex items-start gap-2 text-xs text-muted-foreground">
       <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       Fields the AI could not read are marked “Needs review” and left blank for you to fill in.
     </p>

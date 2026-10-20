@@ -158,13 +158,13 @@ export function NotificationsCard() {
   }
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Notifications</CardTitle>
         <CardDescription>Get a nudge before class starts.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Allow browser notifications and ScheduleAI can ping you before a class begins, even when
           this tab is in the background. Reminders follow your lead time above.
         </p>
@@ -172,20 +172,20 @@ export function NotificationsCard() {
         {!prefsPending && prefs && !prefs.vapidConfigured ? (
           <div
             role="status"
-            className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800"
+            className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-200"
           >
             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>Notifications aren&apos;t configured on this server.</span>
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 px-3 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border px-3 py-3">
           <div className="space-y-0.5">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-zinc-900">
-              <Bell className="size-4 text-indigo-600" aria-hidden="true" />
+            <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+              <Bell className="size-4 text-primary" aria-hidden="true" />
               Browser notifications
             </p>
-            <p className="text-xs text-gray-500" role="status">
+            <p className="text-xs text-muted-foreground" role="status">
               {busy ? (
                 <span className="inline-flex items-center gap-1.5">
                   <Loader2 className="size-3 animate-spin" aria-hidden="true" />
@@ -208,20 +208,20 @@ export function NotificationsCard() {
             onClick={() => void handleToggle(!enabled)}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-              enabled ? "bg-indigo-600" : "bg-gray-300",
+              enabled ? "bg-indigo-600" : "bg-input",
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
-                "pointer-events-none inline-block size-5 rounded-full bg-white shadow-sm transition-transform",
+                "pointer-events-none inline-block size-5 rounded-full bg-card shadow-sm transition-transform",
                 enabled ? "translate-x-[22px]" : "translate-x-[2px]",
               )}
             />
           </button>
         </div>
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           {ready && !isPushSupported()
             ? "This browser doesn't support notifications."
             : "Your browser will ask for permission the first time you turn this on."}

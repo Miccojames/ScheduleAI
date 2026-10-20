@@ -23,18 +23,18 @@ export default function UploadsPage() {
     <>
       <PageHeader
         title="Uploads"
-        description="Your schedule photos — view them again, re-run the AI, or clean up old ones."
+        description="Your timetable photos — view them again, re-run the AI, or clean up old ones."
       />
 
       {uploads.length === 0 ? (
         <EmptyState
           icon={History}
           title="No uploads yet."
-          body="Snap a photo of your class schedule and we'll turn it into an editable weekly plan."
+          body="Snap a photo of any timetable and we'll turn it into an editable weekly plan."
           action={
             <Button onClick={() => router.push("/upload")}>
               <ImageUp className="size-4" aria-hidden="true" />
-              Upload Schedule
+              Scan a timetable
             </Button>
           }
         />

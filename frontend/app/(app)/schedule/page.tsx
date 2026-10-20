@@ -38,7 +38,7 @@ function kindChipClass(active: boolean): string {
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
     active
       ? "shadow-sm"
-      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900",
+      : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground",
   );
 }
 
@@ -114,11 +114,11 @@ function ScheduleContent() {
       <EmptyState
         icon={CalendarX2}
         title="No schedule yet."
-        body="Upload a photo of your class schedule and we'll organize it for you."
+        body="Scan a timetable photo and we'll organize it for you."
         action={
           <Button onClick={() => router.push("/upload")}>
             <ImageUp className="size-4" aria-hidden="true" />
-            Upload Schedule
+            Scan a timetable
           </Button>
         }
       />
@@ -130,7 +130,7 @@ function ScheduleContent() {
   return (
     <>
       <PageHeader
-        title="My Schedule"
+        title="Your Week"
         description={active.name}
         actions={
           <Button
@@ -175,7 +175,7 @@ function ScheduleContent() {
                   ? {
                       backgroundColor: `${meta.defaultColor}1A`,
                       borderColor: meta.defaultColor,
-                      color: meta.defaultColor,
+                      color: `color-mix(in srgb, ${meta.defaultColor} 78%, var(--foreground))`,
                     }
                   : undefined
               }
@@ -224,7 +224,7 @@ function ScheduleContent() {
                 </Button>
                 <Button variant="outline" onClick={() => router.push("/upload")}>
                   <ImageUp className="size-4" aria-hidden="true" />
-                  Upload Schedule
+                  Scan a timetable
                 </Button>
               </div>
             }

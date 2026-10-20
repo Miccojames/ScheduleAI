@@ -47,7 +47,7 @@ export function EditClassDialog({ open, onOpenChange, entry, onSaved }: EditClas
     instructor: entry.instructor ?? "",
     room: entry.room ?? "",
     notes: entry.notes ?? "",
-    color: entry.color,
+    color: `color-mix(in srgb, ${entry.color} 78%, var(--foreground))`,
   };
 
   async function handleSubmit(values: ClassFormValues) {

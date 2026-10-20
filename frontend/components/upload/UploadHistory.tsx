@@ -16,13 +16,13 @@ import { cn } from "cn";
 import type { UploadRecord, UploadStatus } from "@/types";
 
 const STATUS_STYLES: Record<UploadStatus, { label: string; className: string }> = {
-  PENDING: { label: "Pending", className: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50" },
+  PENDING: { label: "Pending", className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10" },
   PROCESSING: {
     label: "Processing",
-    className: "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-50 animate-pulse",
+    className: "border-primary/30 bg-accent text-primary hover:bg-accent animate-pulse",
   },
-  COMPLETED: { label: "Completed", className: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50" },
-  FAILED: { label: "Failed", className: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50" },
+  COMPLETED: { label: "Completed", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10" },
+  FAILED: { label: "Failed", className: "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/10" },
 };
 
 function formatFileSize(bytes: number): string {
@@ -111,25 +111,25 @@ export function UploadHistory({ uploads }: { uploads: UploadRecord[] }) {
           return (
             <li
               key={upload.id}
-              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="rounded-2xl border border-border bg-card p-4 shadow-sm"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                     <FileImage className="size-4.5" aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-sm font-semibold text-zinc-900" title={upload.fileName}>
+                      <h2 className="truncate text-sm font-semibold text-foreground" title={upload.fileName}>
                         {upload.fileName}
                       </h2>
                       <StatusBadge status={upload.processingStatus} />
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {formatFileSize(upload.fileSize)} · Uploaded {formatDate(new Date(upload.createdAt))}
                     </p>
                     {upload.processingStatus === "FAILED" && upload.error ? (
-                      <p className="mt-1.5 text-xs text-rose-600">{upload.error}</p>
+                      <p className="mt-1.5 text-xs text-destructive">{upload.error}</p>
                     ) : null}
                   </div>
                 </div>
@@ -166,7 +166,7 @@ export function UploadHistory({ uploads }: { uploads: UploadRecord[] }) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setDeleteTarget(upload)}
                   >
                     <Trash2 className="size-4" aria-hidden="true" />

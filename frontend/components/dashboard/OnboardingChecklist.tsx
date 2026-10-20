@@ -28,7 +28,7 @@ function readDismissed(): boolean {
 const STEPS = [
   {
     title: "Upload a schedule photo",
-    body: "Our AI reads your class schedule and turns it into calendar blocks.",
+    body: "Our AI reads any timetable and turns it into calendar blocks.",
     href: "/upload",
     icon: ImageUp,
     cta: "Upload photo",

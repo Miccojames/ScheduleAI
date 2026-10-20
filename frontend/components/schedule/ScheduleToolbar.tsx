@@ -107,14 +107,14 @@ export function ScheduleToolbar({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl border border-border bg-card p-4">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
         <div className="relative">
           <Label htmlFor="schedule-search" className="sr-only">
             Search classes
           </Label>
           <Search
-            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-gray-400"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
@@ -163,8 +163,8 @@ export function ScheduleToolbar({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-gray-500" aria-live="polite">
-          Showing {resultCount} {resultCount === 1 ? "class" : "classes"}
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          Showing {resultCount} {resultCount === 1 ? "event" : "events"}
         </p>
 
         {schedule ? (

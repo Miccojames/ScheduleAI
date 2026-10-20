@@ -54,7 +54,7 @@ export default function LoginPage() {
   });
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-xl font-semibold tracking-tight">Welcome back</CardTitle>
         <CardDescription>Sign in to see your weekly schedule.</CardDescription>
@@ -64,7 +64,7 @@ export default function LoginPage() {
           {formError ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700"
+              className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
             >
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>{formError}</span>
@@ -83,7 +83,7 @@ export default function LoginPage() {
               {...register("email")}
             />
             {errors.email ? (
-              <p id="email-error" className="text-xs text-rose-600">
+              <p id="email-error" className="text-xs text-destructive">
                 {errors.email.message}
               </p>
             ) : null}
@@ -101,7 +101,7 @@ export default function LoginPage() {
               {...register("password")}
             />
             {errors.password ? (
-              <p id="password-error" className="text-xs text-rose-600">
+              <p id="password-error" className="text-xs text-destructive">
                 {errors.password.message}
               </p>
             ) : null}
@@ -110,7 +110,7 @@ export default function LoginPage() {
           <div className="-mt-1 text-right">
             <Link
               href="/forgot-password"
-              className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              className="text-sm font-medium text-primary hover:text-primary"
             >
               Forgot password?
             </Link>
@@ -128,9 +128,9 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link href="/register" className="font-medium text-primary hover:text-primary">
             Create one
           </Link>
         </p>

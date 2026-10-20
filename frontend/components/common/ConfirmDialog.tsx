@@ -40,7 +40,7 @@ export function ConfirmDialog({
       <DialogContent className="p-6 sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
-          <DialogDescription className="text-sm text-gray-600">
+          <DialogDescription className="text-sm text-muted-foreground">
             {description}
           </DialogDescription>
         </DialogHeader>

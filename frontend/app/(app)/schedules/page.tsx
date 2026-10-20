@@ -128,12 +128,12 @@ function NameDialog({
             }}
           />
           {fieldErrors.name ? (
-            <p className="text-xs text-rose-600">{fieldErrors.name}</p>
+            <p className="text-xs text-destructive">{fieldErrors.name}</p>
           ) : null}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="schedule-start-date" className="text-xs text-gray-500">
+            <Label htmlFor="schedule-start-date" className="text-xs text-muted-foreground">
               Term start <span className="font-normal">(optional)</span>
             </Label>
             <Input
@@ -144,7 +144,7 @@ function NameDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="schedule-end-date" className="text-xs text-gray-500">
+            <Label htmlFor="schedule-end-date" className="text-xs text-muted-foreground">
               Term end <span className="font-normal">(optional)</span>
             </Label>
             <Input
@@ -158,7 +158,7 @@ function NameDialog({
           </div>
         </div>
         {fieldErrors.endDate ? (
-          <p className="text-xs text-rose-600">{fieldErrors.endDate}</p>
+          <p className="text-xs text-destructive">{fieldErrors.endDate}</p>
         ) : null}
         <DialogFooter className="-mx-6 -mb-6">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
@@ -361,33 +361,33 @@ export default function SchedulesPage() {
             const termRange = formatDateRange(schedule.startDate, schedule.endDate);
             return (
               <li key={schedule.id}>
-                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                  <div className="h-32 shrink-0 overflow-hidden rounded-t-2xl border-b border-gray-200 bg-card">
+                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+                  <div className="h-32 shrink-0 overflow-hidden rounded-t-2xl border-b border-border bg-card">
                     <ScheduleThumb scheduleId={schedule.id} />
                   </div>
                   <div className="flex flex-1 flex-col justify-between p-5">
                     <div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2.5">
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-primary">
                             <CalendarRange className="size-4.5" aria-hidden="true" />
                           </span>
-                          <h2 className="text-base font-semibold text-zinc-900">
+                          <h2 className="text-base font-semibold text-foreground">
                             {schedule.name}
                           </h2>
                         </div>
                         {isActive ? (
-                          <Badge className="border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-50">
+                          <Badge className="border-primary/30 bg-accent text-primary hover:bg-accent">
                             Active
                           </Badge>
                         ) : null}
                       </div>
 
                       {termRange ? (
-                        <p className="mt-2 text-xs font-medium text-gray-500">{termRange}</p>
+                        <p className="mt-2 text-xs font-medium text-muted-foreground">{termRange}</p>
                       ) : null}
 
-                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="size-4" aria-hidden="true" />
                           {schedule.entryCount} {schedule.entryCount === 1 ? "event" : "events"}
@@ -396,7 +396,7 @@ export default function SchedulesPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+                    <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
                       <Button
                         variant={isActive ? "secondary" : "default"}
                         size="sm"
@@ -418,7 +418,7 @@ export default function SchedulesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => setDeleteTarget(schedule)}
                       >
                         Delete

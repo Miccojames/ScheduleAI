@@ -82,15 +82,15 @@ export default function UploadPage() {
   return (
     <>
       <PageHeader
-        title="Upload Schedule"
-        description="Snap a photo of your class schedule and we'll turn it into an editable weekly plan."
+        title="Scan a Timetable"
+        description="Snap a photo of any timetable — class schedule, shift roster, gym slots — and we'll turn it into an editable weekly plan."
       />
 
       <div className="mx-auto max-w-2xl space-y-4">
         {stage === "uploading" || stage === "processing" ? (
           <>
             <ProcessingSteps completedSteps={stage === "uploading" ? 1 : 3} />
-            <p className="text-center text-xs text-gray-500">
+            <p className="text-center text-xs text-muted-foreground">
               Scanning usually takes about a minute. The scan keeps running even if you
               leave this page — you&apos;ll find it under Uploads.
             </p>
@@ -98,16 +98,16 @@ export default function UploadPage() {
         ) : null}
 
         {stage === "error" ? (
-          <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-6 text-center">
-            <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-white text-rose-600 shadow-sm">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-card text-destructive shadow-sm">
               <ImageOff className="size-6" aria-hidden="true" />
             </span>
-            <h2 className="mt-4 text-base font-semibold text-zinc-900">
+            <h2 className="mt-4 text-base font-semibold text-foreground">
               {failureMessage ??
                 "Sorry, we couldn't read this schedule clearly. Try uploading a clearer image."}
             </h2>
             {failureMessage ? null : (
-              <p className="mt-1.5 text-sm text-gray-600">
+              <p className="mt-1.5 text-sm text-muted-foreground">
                 Make sure the whole schedule is inside the photo and the text is readable.
               </p>
             )}
@@ -121,15 +121,15 @@ export default function UploadPage() {
         ) : null}
 
         {stage === "empty" ? (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center">
-            <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-gray-100 text-gray-500">
+          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
               <ScanLine className="size-6" aria-hidden="true" />
             </span>
-            <h2 className="mt-4 text-base font-semibold text-zinc-900">
+            <h2 className="mt-4 text-base font-semibold text-foreground">
               No classes were detected in this image.
             </h2>
-            <p className="mt-1.5 text-sm text-gray-600">
-              Try a straighter photo with better lighting, or add your classes by hand.
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Try a straighter photo with better lighting, or add your events by hand.
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Button onClick={reset}>
@@ -156,7 +156,7 @@ export default function UploadPage() {
               </div>
             ) : null}
 
-            <Alert className="border-gray-200 bg-gray-50 text-gray-600">
+            <Alert className="border-border bg-muted text-muted-foreground">
               <AlertTitle>Tips for a better scan</AlertTitle>
               <AlertDescription>
                 Photograph the schedule straight-on, avoid shadows, and keep the subject names

@@ -82,7 +82,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => router.push("/upload")}>
               <ImageUp className="size-4" aria-hidden="true" />
-              Upload Schedule
+              Scan a timetable
             </Button>
             <Button variant="outline" onClick={() => router.push("/add-class")}>
               <PlusCircle className="size-4" aria-hidden="true" />
@@ -183,7 +183,7 @@ export default function DashboardPage() {
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => router.push("/upload")}>
                 <ImageUp className="size-4" aria-hidden="true" />
-                Upload Schedule
+                Scan a timetable
               </Button>
               <Button variant="outline" onClick={() => router.push("/add-class")}>
                 <PlusCircle className="size-4" aria-hidden="true" />

@@ -49,7 +49,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" description="Your profile, password, and notification preferences." />
 
       <div className="mx-auto max-w-2xl space-y-4">
-        <Card className="rounded-2xl border-gray-200 shadow-sm">
+        <Card className="rounded-2xl border-border shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Profile</CardTitle>
             <CardDescription>Update the name your classmates and teachers see.</CardDescription>
@@ -72,7 +72,7 @@ export default function SettingsPage() {
                     {...register("firstName")}
                   />
                   {errors.firstName ? (
-                    <p className="text-xs text-rose-600">{errors.firstName.message}</p>
+                    <p className="text-xs text-destructive">{errors.firstName.message}</p>
                   ) : null}
                 </div>
                 <div className="space-y-1.5">
@@ -83,7 +83,7 @@ export default function SettingsPage() {
                     {...register("lastName")}
                   />
                   {errors.lastName ? (
-                    <p className="text-xs text-rose-600">{errors.lastName.message}</p>
+                    <p className="text-xs text-destructive">{errors.lastName.message}</p>
                   ) : null}
                 </div>
               </div>
@@ -91,7 +91,7 @@ export default function SettingsPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" value={user?.email ?? ""} readOnly disabled />
-                <p className="text-xs text-gray-500">Your email address can&apos;t be changed.</p>
+                <p className="text-xs text-muted-foreground">Your email address can&apos;t be changed.</p>
               </div>
 
               <div className="flex items-center gap-3">
@@ -100,7 +100,7 @@ export default function SettingsPage() {
                   Save Changes
                 </Button>
                 {saved && !updateProfile.isPending ? (
-                  <p className="text-sm text-emerald-600" role="status">
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400" role="status">
                     Saved.
                   </p>
                 ) : null}
@@ -115,7 +115,7 @@ export default function SettingsPage() {
 
         <NotificationsCard />
 
-        <Card className="rounded-2xl border-gray-200 shadow-sm">
+        <Card className="rounded-2xl border-border shadow-sm">
           <CardHeader>
             <CardTitle className="text-base font-semibold">Account</CardTitle>
             <CardDescription>Sign out of ScheduleAI on this device.</CardDescription>
@@ -125,7 +125,7 @@ export default function SettingsPage() {
               variant="outline"
               onClick={() => logout.mutate()}
               disabled={logout.isPending}
-              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <LogOut className="size-4" aria-hidden="true" />
               Sign out
@@ -133,16 +133,16 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-gray-200 shadow-sm">
+        <Card className="rounded-2xl border-border shadow-sm">
           <CardContent className="flex items-start gap-3 py-5">
-            <Info className="mt-0.5 size-4 shrink-0 text-gray-400" aria-hidden="true" />
+            <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium text-zinc-900">
+              <p className="text-sm font-medium text-foreground">
                 ScheduleAI v1.0 — AI Schedule Scanner &amp; Planner
               </p>
               <Separator className="my-3 w-16" />
-              <p className="text-xs text-gray-500">
-                Photograph a printed class schedule and get a clean, editable weekly plan.
+              <p className="text-xs text-muted-foreground">
+                Photograph a printed timetable and get a clean, editable weekly plan.
               </p>
             </div>
           </CardContent>

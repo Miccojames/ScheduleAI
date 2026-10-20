@@ -50,7 +50,7 @@ export default function ForgotPasswordPage() {
   });
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-xl font-semibold tracking-tight">
           {sent ? "Check your email" : "Reset your password"}
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
           <div className="space-y-4">
             <div
               role="status"
-              className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700"
+              className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-700 dark:text-emerald-300"
             >
               <MailCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
               </span>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Running locally? Email isn&apos;t connected in dev mode — the reset link is printed
               to the server console instead.
             </p>
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
             {formError ? (
               <div
                 role="alert"
-                className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700"
+                className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
               >
                 <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
                 <span>{formError}</span>
@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
                 {...register("email")}
               />
               {errors.email ? (
-                <p id="email-error" className="text-xs text-rose-600">
+                <p id="email-error" className="text-xs text-destructive">
                   {errors.email.message}
                 </p>
               ) : null}
@@ -124,9 +124,9 @@ export default function ForgotPasswordPage() {
           </form>
         )}
 
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           Remembered it?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link href="/login" className="font-medium text-primary hover:text-primary">
             Back to sign in
           </Link>
         </p>

@@ -14,7 +14,7 @@ export function LoadingState({ rows = 3, className }: LoadingStateProps) {
       {Array.from({ length: rows }).map((_, index) => (
         <div
           key={index}
-          className="rounded-2xl border border-gray-200 bg-white p-5"
+          className="rounded-2xl border border-border bg-card p-5"
           aria-hidden="true"
         >
           <div className="flex items-center gap-4">

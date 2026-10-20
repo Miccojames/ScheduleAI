@@ -1,45 +1,76 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarCheck, CalendarDays, ScanLine, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  BellRing,
+  CalendarCheck,
+  CalendarDays,
+  ScanLine,
+  TriangleAlert,
+} from "lucide-react";
 import { cn } from "cn";
 
 export const metadata: Metadata = {
-  title: "ScheduleAI — Your class schedule, scanned in seconds",
+  title: "ScheduleAI — Your whole week, planned in one place",
   description:
-    "Photograph your class timetable and get a clean, editable weekly plan with clash detection built in.",
+    "Photograph a timetable, add work shifts, deadlines and personal blocks, and get one editable weekly plan with clash detection, reminders and calendar export.",
 };
 
 const FEATURES = [
   {
     icon: ScanLine,
-    title: "Snap the sheet, skip the typing",
-    body: "Photograph the timetable from your portal or a printed page. Subjects, days, times, rooms and instructors come out structured — and anything the scan isn't sure about is flagged so you can check it.",
+    title: "Snap any timetable",
+    body: "Photograph a class timetable, a shift roster or a printed schedule. Subjects, days, times, rooms and people come out structured — and anything the scan isn't sure about is flagged so you can check it.",
     accent: "from-indigo-500/15 to-transparent",
   },
   {
     icon: TriangleAlert,
     title: "Clashes caught before they bite",
-    body: "Two lectures booked over each other are marked on the grid and on every card, so you can move one before it costs you a morning.",
+    body: "Two things booked over each other — a lecture and a shift, a class and the gym — are marked on the grid and on every card, so you can move one before it costs you a morning.",
     accent: "from-amber-500/15 to-transparent",
   },
   {
     icon: CalendarDays,
     title: "A real week, not a list",
-    body: "A weekly grid with a live now-line on today, class colours you can tell apart at a glance, and one-tap edits for anything that moved.",
+    body: "A weekly grid with a live now-line on today, colours you can tell apart at a glance, and drag-and-drop edits for anything that moved.",
     accent: "from-emerald-500/15 to-transparent",
+  },
+  {
+    icon: BellRing,
+    title: "Built for real life, not just school",
+    body: "Classes, work shifts, personal blocks and one-off deadlines live side by side — each with its own colour, its own reminders, and a one-tap export to Google Calendar.",
+    accent: "from-pink-500/15 to-transparent",
   },
 ] as const;
 
+// The kind palette, mirrored from lib/kind.ts so the mock preview shows the
+// real colours a student's week is drawn in.
+const KIND_COLOR = {
+  class: "#6366F1",
+  work: "#F59E0B",
+  personal: "#EC4899",
+  other: "#06B6D4",
+} as const;
+
 /** Decorative preview of the week grid, built entirely from divs. */
 const PREVIEW_BLOCKS = [
-  { day: 0, top: 6, height: 22, color: "#6366F1", label: "CS 201" },
-  { day: 0, top: 46, height: 16, color: "#8B5CF6", label: "MATH 110" },
-  { day: 1, top: 18, height: 20, color: "#10B981", label: "PHYS 150" },
-  { day: 1, top: 52, height: 14, color: "#F59E0B", label: "ECON 101" },
-  { day: 2, top: 10, height: 26, color: "#EC4899", label: "HIST 202" },
-  { day: 3, top: 30, height: 18, color: "#06B6D4", label: "BIO 120" },
-  { day: 3, top: 60, height: 14, color: "#3B82F6", label: "CS 101" },
-  { day: 4, top: 22, height: 22, color: "#EF4444", label: "SEM 300" },
+  { day: 0, top: 5, height: 20, color: KIND_COLOR.class, label: "Lecture" },
+  { day: 0, top: 46, height: 16, color: KIND_COLOR.work, label: "Shift" },
+  { day: 1, top: 16, height: 15, color: KIND_COLOR.personal, label: "Gym" },
+  { day: 1, top: 52, height: 18, color: KIND_COLOR.class, label: "Lecture" },
+  { day: 2, top: 8, height: 18, color: KIND_COLOR.work, label: "Payday" },
+  { day: 2, top: 46, height: 15, color: KIND_COLOR.class, label: "Lab" },
+  { day: 3, top: 28, height: 16, color: KIND_COLOR.work, label: "Standup" },
+  { day: 3, top: 60, height: 13, color: KIND_COLOR.other, label: "Deadline" },
+  { day: 4, top: 20, height: 20, color: KIND_COLOR.class, label: "Lecture" },
+  { day: 4, top: 56, height: 14, color: KIND_COLOR.personal, label: "Dentist" },
+] as const;
+
+const KIND_LEGEND = [
+  { label: "Class", color: KIND_COLOR.class },
+  { label: "Work", color: KIND_COLOR.work },
+  { label: "Personal", color: KIND_COLOR.personal },
+  { label: "Other", color: KIND_COLOR.other },
 ] as const;
 
 export default function LandingPage() {
@@ -75,20 +106,21 @@ export default function LandingPage() {
             <div className="lg:col-span-7">
               <p className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-accent px-3 py-1 text-xs font-medium text-accent-foreground animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-both">
                 <ScanLine className="size-3.5" aria-hidden="true" />
-                Built for students
+                Classes · Work · Life
               </p>
 
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-balance text-foreground animate-in fade-in slide-in-from-bottom-3 duration-700 fill-mode-both delay-100 sm:text-5xl lg:text-6xl">
-                Your class schedule,{" "}
+                Every part of your week,{" "}
                 <span className="bg-gradient-to-br from-primary to-violet-500 bg-clip-text text-transparent">
-                  scanned in seconds
+                  finally in one place
                 </span>
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground text-pretty animate-in fade-in slide-in-from-bottom-3 duration-700 fill-mode-both delay-200 sm:text-lg">
-                Hand us the photo of your timetable. We&apos;ll pull out every subject, day,
-                time and room, flag anything that clashes, and drop the lot into a weekly
-                calendar you can edit like a normal person.
+                Photograph a timetable and we&apos;ll pull out every subject, day, time and
+                room. Add your work shifts, gym sessions and deadlines by hand. Everything lands
+                in one weekly grid you can edit like a normal person — and we&apos;ll tell you
+                when two things collide.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-700 fill-mode-both delay-300">
@@ -103,7 +135,7 @@ export default function LandingPage() {
                   />
                 </Link>
                 <span className="text-sm text-muted-foreground">
-                  Free while you&apos;re enrolled.
+                  Free for personal use.
                 </span>
               </div>
             </div>
@@ -113,7 +145,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <ul className="mt-16 grid gap-4 sm:mt-20 sm:grid-cols-3">
+          <ul className="mt-16 grid gap-4 sm:mt-20 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.map((feature, index) => (
               <li
                 key={feature.title}
@@ -142,8 +174,8 @@ export default function LandingPage() {
         </main>
 
         <footer className="flex flex-col items-center justify-between gap-2 border-t border-border py-6 text-xs text-muted-foreground sm:flex-row">
-          <p>ScheduleAI — your timetable, typed for you.</p>
-          <p>Made for students who would rather not re-enter their timetable.</p>
+          <p>ScheduleAI — your week, sorted.</p>
+          <p>Classes, shifts, deadlines — one place, one plan.</p>
         </footer>
       </div>
     </div>
@@ -162,7 +194,7 @@ function WeekPreview() {
           <span className="text-xs font-semibold text-foreground">This week</span>
           <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="size-1.5 rounded-full bg-primary" />
-            8 classes tracked
+            10 events tracked
           </span>
         </div>
 
@@ -211,6 +243,20 @@ function WeekPreview() {
           </div>
         </div>
       </div>
+
+      {/* Legend — the same four event kinds the app uses. */}
+      <ul className="relative mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        {KIND_LEGEND.map((kind) => (
+          <li key={kind.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span
+              className="size-2 rounded-full"
+              style={{ backgroundColor: kind.color }}
+              aria-hidden="true"
+            />
+            {kind.label}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

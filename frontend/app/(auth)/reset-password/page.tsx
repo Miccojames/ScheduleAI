@@ -33,7 +33,7 @@ const MIN_TOKEN_LENGTH = 10;
 
 function ExpiredCard() {
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-xl font-semibold tracking-tight">
           This reset link is invalid or has expired
@@ -43,19 +43,19 @@ function ExpiredCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <span>Ask for a fresh link and open it right away.</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <Link
             href="/forgot-password"
-            className="inline-flex items-center gap-1.5 font-medium text-indigo-600 hover:text-indigo-700"
+            className="inline-flex items-center gap-1.5 font-medium text-primary hover:text-primary"
           >
             <KeyRound className="size-4" aria-hidden="true" />
             Request a new link
           </Link>
-          <Link href="/login" className="font-medium text-gray-500 hover:text-gray-700">
+          <Link href="/login" className="font-medium text-muted-foreground hover:text-foreground">
             Back to sign in
           </Link>
         </div>
@@ -106,7 +106,7 @@ function ResetForm({ token }: { token: string }) {
   });
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-xl font-semibold tracking-tight">Choose a new password</CardTitle>
         <CardDescription>It must be at least 8 characters long.</CardDescription>
@@ -116,7 +116,7 @@ function ResetForm({ token }: { token: string }) {
           {formError ? (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700"
+              className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
             >
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>{formError}</span>
@@ -142,11 +142,11 @@ function ResetForm({ token }: { token: string }) {
           />
 
           {linkHelp ? (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Need a new one?{" "}
               <Link
                 href="/forgot-password"
-                className="font-medium text-indigo-600 hover:text-indigo-700"
+                className="font-medium text-primary hover:text-primary"
               >
                 Request a new reset link
               </Link>
@@ -165,9 +165,9 @@ function ResetForm({ token }: { token: string }) {
           </Button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           Remembered it?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-700">
+          <Link href="/login" className="font-medium text-primary hover:text-primary">
             Back to sign in
           </Link>
         </p>
@@ -189,7 +189,7 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="flex justify-center py-10" role="status" aria-live="polite">
-          <Loader2 className="size-5 animate-spin text-gray-400" aria-hidden="true" />
+          <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
         </div>
       }
     >

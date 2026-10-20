@@ -116,13 +116,13 @@ export default function UploadReviewPage() {
   if (detected.length === 0) {
     return (
       <>
-        <PageHeader title="Review Your Schedule" />
+        <PageHeader title="Review Your Plan" />
         <EmptyState
           icon={Info}
           title="No schedule to review."
-          body="Upload a photo of your class schedule and we'll organize it for you."
+          body="Scan a timetable photo and we'll organize it for you."
           action={
-            <Button onClick={() => router.push("/upload")}>Upload Schedule</Button>
+            <Button onClick={() => router.push("/upload")}>Scan a timetable</Button>
           }
         />
       </>
@@ -237,18 +237,18 @@ export default function UploadReviewPage() {
   return (
     <>
       <PageHeader
-        title="Review Your Schedule"
+        title="Review Your Plan"
         description="Check and correct the events we detected before saving."
       />
 
       <div className="space-y-4">
         {isMock ? (
-          <Alert className="w-full border-rose-300 bg-rose-50 text-rose-950">
-            <AlertTriangle className="size-4 text-rose-600" aria-hidden="true" />
-            <AlertTitle className="text-base font-bold text-rose-950">
+          <Alert className="w-full border-destructive/40 bg-destructive/10 text-destructive">
+            <AlertTriangle className="size-4 text-destructive" aria-hidden="true" />
+            <AlertTitle className="text-base font-bold text-destructive">
               ⚠ You are reviewing DEMO data — not your photo
             </AlertTitle>
-            <AlertDescription className="text-rose-900">
+            <AlertDescription className="text-destructive">
               <p>
                 The AI service was unavailable, so these are placeholder entries.
                 Do not save them as your real schedule.
@@ -257,7 +257,7 @@ export default function UploadReviewPage() {
                 <Button
                   onClick={handleRetryRealAi}
                   disabled={reprocess.isPending || saving}
-                  className="border border-rose-300 bg-white text-rose-800 hover:bg-rose-100"
+                  className="border border-destructive/40 bg-card text-destructive hover:bg-destructive/10"
                   variant="outline"
                 >
                   {reprocess.isPending ? (
@@ -286,7 +286,7 @@ export default function UploadReviewPage() {
         />
 
         {selectedId === NEW_SCHEDULE_VALUE ? (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Saving into a new schedule — you can rename it later in Schedules.
             {newScheduleName.trim()
               ? null
@@ -295,10 +295,10 @@ export default function UploadReviewPage() {
         ) : null}
 
         {targetSchedule && targetSchedule.entryCount > 0 ? (
-          <Alert className="border-gray-200 bg-gray-50 text-gray-700">
+          <Alert className="border-border bg-muted text-foreground">
             <Info className="size-4" aria-hidden="true" />
-            <AlertTitle className="text-gray-700">Heads up</AlertTitle>
-            <AlertDescription className="text-gray-600">
+            <AlertTitle className="text-foreground">Heads up</AlertTitle>
+            <AlertDescription className="text-muted-foreground">
               This schedule already has {targetSchedule.entryCount}{" "}
               {targetSchedule.entryCount === 1 ? "event" : "events"} — saving will add to it.
             </AlertDescription>
@@ -315,13 +315,13 @@ export default function UploadReviewPage() {
 
         <AddRowButton onClick={() => setRows((current) => [...current, emptyReviewRow()])} />
 
-        <div className="sticky bottom-20 z-10 rounded-2xl border border-gray-200 bg-white/95 p-3 backdrop-blur md:bottom-4">
+        <div className="sticky bottom-20 z-10 rounded-2xl border border-border bg-card/95 p-3 backdrop-blur md:bottom-4">
           {isMock ? (
-            <div className="mb-2 space-y-2 rounded-xl border border-rose-300 bg-rose-50 p-3 text-rose-950">
+            <div className="mb-2 space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
               <p className="text-sm font-semibold">
                 ⚠ Demo data — these entries are placeholders, not your schedule.
               </p>
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-rose-900">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-destructive">
                 <Checkbox
                   checked={demoAcknowledged}
                   onCheckedChange={(checked) => setDemoAcknowledged(checked === true)}

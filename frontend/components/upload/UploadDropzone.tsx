@@ -64,9 +64,9 @@ export function UploadDropzone({ file, onFileChange, disabled = false }: UploadD
 
   if (file && previewUrl) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="rounded-2xl border border-border bg-card p-4">
         <div className="flex items-start gap-4">
-          <div className="relative size-24 shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+          <div className="relative size-24 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
             <Image
               src={previewUrl}
               alt="Selected schedule preview"
@@ -77,14 +77,14 @@ export function UploadDropzone({ file, onFileChange, disabled = false }: UploadD
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-zinc-900">{file.name}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{formatFileSize(file.size)}</p>
+            <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
             <Button
               variant="ghost"
               size="sm"
               onClick={clear}
               disabled={disabled}
-              className="mt-2 -ml-2 text-gray-500 hover:text-rose-600"
+              className="mt-2 -ml-2 text-muted-foreground hover:text-destructive"
             >
               <X className="size-4" aria-hidden="true" />
               Remove
@@ -110,14 +110,14 @@ export function UploadDropzone({ file, onFileChange, disabled = false }: UploadD
         }}
         className={cn(
           "flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors",
-          dragging ? "border-indigo-400 bg-indigo-50/60" : "border-gray-200 bg-white",
+          dragging ? "border-indigo-400 bg-primary/10" : "border-border bg-card",
         )}
       >
-        <span className="flex size-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+        <span className="flex size-12 items-center justify-center rounded-xl bg-accent text-primary">
           <UploadCloud className="size-6" aria-hidden="true" />
         </span>
-        <p className="mt-4 text-sm font-medium text-zinc-900">Drag an image here</p>
-        <p className="mt-1 text-xs text-gray-500">JPEG, PNG or WebP · up to 8MB</p>
+        <p className="mt-4 text-sm font-medium text-foreground">Drag an image here</p>
+        <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG or WebP · up to 8MB</p>
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={disabled}>
@@ -155,7 +155,7 @@ export function UploadDropzone({ file, onFileChange, disabled = false }: UploadD
       </div>
 
       {disabled ? (
-        <p className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500">
+        <p className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
           Working on your image…
         </p>

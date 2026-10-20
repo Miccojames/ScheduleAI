@@ -10,10 +10,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-600 text-white">
           <CalendarCheck className="size-5" aria-hidden="true" />
         </span>
-        <span className="text-lg font-semibold tracking-tight text-zinc-900">ScheduleAI</span>
+        <span className="text-lg font-semibold tracking-tight text-foreground">ScheduleAI</span>
       </Link>
       <div className="w-full max-w-md">{children}</div>
-      <p className="mt-6 text-center text-xs text-gray-400">
+      <p className="mt-6 text-center text-xs text-muted-foreground">
         AI Schedule Scanner &amp; Planner
       </p>
     </div>

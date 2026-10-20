@@ -68,7 +68,7 @@ export function ReminderPrefsCard() {
   };
 
   return (
-    <Card className="rounded-2xl border-gray-200 shadow-sm">
+    <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Reminder preferences</CardTitle>
         <CardDescription>How early the dashboard should warn you before a class starts.</CardDescription>
@@ -92,11 +92,11 @@ export function ReminderPrefsCard() {
               ))}
             </SelectContent>
           </Select>
-          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <BellRing className="size-3.5" aria-hidden="true" />
             You&apos;ll see a reminder banner when a class is about to begin.
           </p>
-          <p className="flex items-center gap-1.5 text-xs text-gray-500">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Globe className="size-3.5" aria-hidden="true" />
             Timezone: {prefs ? prefs.timezone ?? browserTimezone : browserTimezone} (from this
             device)

@@ -38,10 +38,10 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="mt-0.5 size-4 shrink-0 text-gray-400" aria-hidden="true" />
+      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm text-zinc-900">{value}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm text-foreground">{value}</p>
       </div>
     </div>
   );
@@ -85,7 +85,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
       instructor: entry.instructor ?? undefined,
       room: entry.room ?? undefined,
       notes: entry.notes ?? undefined,
-      color: entry.color,
+      color: `color-mix(in srgb, ${entry.color} 78%, var(--foreground))`,
       exceptionDates: nextExceptions,
       isOneOff: entry.isOneOff,
       kind,
@@ -154,7 +154,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
               style={{
                 backgroundColor: `${entry.color}1A`,
                 borderColor: `${entry.color}59`,
-                color: entry.color,
+                color: `color-mix(in srgb, ${entry.color} 78%, var(--foreground))`,
               }}
             >
               <kindMeta.icon className="size-3.5" aria-hidden="true" />
@@ -163,7 +163,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
             <DialogTitle className="text-lg font-semibold">{entry.subject}</DialogTitle>
             <DialogDescription
               className="flex items-center gap-2"
-              style={{ color: entry.color }}
+              style={{ color: `color-mix(in srgb, ${entry.color} 78%, var(--foreground))` }}
             >
               <span
                 aria-hidden="true"
@@ -200,21 +200,21 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
             ) : (
               <div className="space-y-2">
                 <div className="flex items-start gap-3">
-                  <CalendarOff className="mt-0.5 size-4 shrink-0 text-gray-400" aria-hidden="true" />
+                  <CalendarOff className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-gray-500">No class on</p>
+                    <p className="text-xs text-muted-foreground">No class on</p>
                     {exceptions.length > 0 ? (
                       <ul className="mt-1.5 flex flex-wrap gap-1.5">
                         {exceptions.map((date) => (
                           <li key={date}>
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 py-0.5 pr-1 pl-2.5 text-xs font-medium text-amber-800">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 py-0.5 pr-1 pl-2.5 text-xs font-medium text-amber-800 dark:text-amber-200">
                               No class: {formatIsoDateLabel(date)}
                               <button
                                 type="button"
                                 aria-label={`Remove exception ${formatIsoDateLabel(date)}`}
                                 disabled={savingException}
                                 onClick={() => removeException(date)}
-                                className="flex size-5 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 hover:text-amber-900 disabled:opacity-50"
+                                className="flex size-5 items-center justify-center rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 hover:text-amber-900 dark:text-amber-200 disabled:opacity-50"
                               >
                                 <X className="size-3" aria-hidden="true" />
                               </button>
@@ -223,7 +223,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
                         ))}
                       </ul>
                     ) : (
-                      <p className="mt-0.5 text-sm text-zinc-900">This class meets every week.</p>
+                      <p className="mt-0.5 text-sm text-foreground">This class meets every week.</p>
                     )}
                     <div className="mt-2 flex items-center gap-2">
                       <Input
@@ -268,7 +268,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
               <Button
                 variant="outline"
                 onClick={() => setConfirmingDelete(true)}
-                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 <Trash2 className="size-4" aria-hidden="true" />
                 Delete

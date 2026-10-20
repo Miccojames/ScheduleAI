@@ -11,7 +11,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "ScheduleAI — AI Schedule Scanner & Planner",
   description:
-    "Photograph your class schedule and let ScheduleAI turn it into a clean, editable weekly plan.",
+    "Photograph a timetable, add work shifts and deadlines, and let ScheduleAI turn your whole week into a clean, editable plan.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

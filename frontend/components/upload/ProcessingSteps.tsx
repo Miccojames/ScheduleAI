@@ -18,10 +18,10 @@ interface ProcessingStepsProps {
 /** Progress list shown while the AI reads the uploaded schedule. */
 export function ProcessingSteps({ completedSteps }: ProcessingStepsProps) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6">
+    <div className="rounded-2xl border border-border bg-card p-6">
       <div className="flex items-center gap-2.5">
-        <Loader2 className="size-4 animate-spin text-indigo-600" aria-hidden="true" />
-        <p className="text-sm font-semibold text-zinc-900">Analyzing your schedule...</p>
+        <Loader2 className="size-4 animate-spin text-primary" aria-hidden="true" />
+        <p className="text-sm font-semibold text-foreground">Analyzing your schedule...</p>
       </div>
 
       <ol className="mt-5 space-y-3" aria-live="polite">
@@ -35,10 +35,10 @@ export function ProcessingSteps({ completedSteps }: ProcessingStepsProps) {
                 className={cn(
                   "flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px]",
                   done
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                     : active
-                      ? "border-indigo-200 bg-indigo-50 text-indigo-600"
-                      : "border-gray-200 bg-gray-50 text-gray-400",
+                      ? "border-primary/30 bg-accent text-primary"
+                      : "border-border bg-muted text-muted-foreground",
                 )}
                 aria-hidden="true"
               >
@@ -47,7 +47,7 @@ export function ProcessingSteps({ completedSteps }: ProcessingStepsProps) {
               <span
                 className={cn(
                   "text-sm",
-                  done ? "text-zinc-900" : active ? "font-medium text-indigo-700" : "text-gray-400",
+                  done ? "text-foreground" : active ? "font-medium text-primary" : "text-muted-foreground",
                 )}
               >
                 {step}

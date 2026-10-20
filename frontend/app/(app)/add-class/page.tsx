@@ -35,11 +35,11 @@ export default function AddClassPage() {
         <EmptyState
           icon={CalendarX2}
           title="No schedule yet."
-          body="Upload a photo of your class schedule and we'll organize it for you."
+          body="Scan a timetable photo and we'll organize it for you."
           action={
             <Button onClick={() => router.push("/upload")}>
               <PlusCircle className="size-4" aria-hidden="true" />
-              Upload Schedule
+              Scan a timetable
             </Button>
           }
         />
@@ -74,7 +74,7 @@ export default function AddClassPage() {
         <ConflictWarning conflicts={conflicts} actionHref="/schedule" actionLabel="View schedule" />
 
         {conflicts.length > 0 ? (
-          <Card className="rounded-2xl border-gray-200 shadow-sm">
+          <Card className="rounded-2xl border-border shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">Add another event</CardTitle>
             </CardHeader>
@@ -89,7 +89,7 @@ export default function AddClassPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="rounded-2xl border-gray-200 shadow-sm">
+          <Card className="rounded-2xl border-border shadow-sm">
             <CardContent className="pt-6">
               <ClassForm
                 key={savedCount}
@@ -105,7 +105,7 @@ export default function AddClassPage() {
         )}
 
         {createEntry.isPending ? (
-          <p className="flex items-center justify-center gap-2 text-xs text-gray-500">
+          <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
             Saving your event…
           </p>

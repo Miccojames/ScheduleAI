@@ -39,7 +39,7 @@ export function PasswordField({
         {...registration}
       />
       {error ? (
-        <p id={errorId} className="text-xs text-rose-600">
+        <p id={errorId} className="text-xs text-destructive">
           {error}
         </p>
       ) : null}
