@@ -1,0 +1,54 @@
+# ScheduleAI — deployment blueprint for Render (free tier).
+#
+# One-click deploy: Render dashboard → New → Blueprint → pick this repo.
+# Every value marked `sync: false` is a SECRET you fill in when Render asks
+# (it is never stored in git).
+#
+# The frontend (Vercel) is deployed separately — see docs/DEPLOYMENT.md.
+services:
+  - type: web
+    name: scheduleai-api
+    runtime: node
+    plan: free
+    # Singapore = closest Render region to the Philippines.
+    region: singapore
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    # `start:prod` applies pending Prisma migrations, then boots the server.
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Neon — use the POOLED connection string ("-pooler" host) so the
+      # serverless-style pool doesn't run out of connections.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      # The exact origin of your Vercel app (no trailing slash), e.g.
+      # https://scheduleai.vercel.app — CORS + the origin check use it.
+      - key: FRONTEND_URL
+        sync: false
+      # Gemini vision key (AI Studio). Empty = mock provider (no AI at all).
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      # Production must never serve demo data as if it were real.
+      - key: AI_ALLOW_MOCK_FALLBACK
+        value: "false"
+      # Web Push (VAPID) — leave empty to disable class reminders.
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:you@example.com
+      # Uploaded images live on the (ephemeral) container disk — see the
+      # "Free-tier caveats" section of docs/DEPLOYMENT.md.
+      - key: UPLOAD_DIR
+        value: /tmp/scheduleai-uploads
