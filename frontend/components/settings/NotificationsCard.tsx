@@ -176,7 +176,7 @@ export function NotificationsCard() {
   }
 
   return (
-    <Card className="rounded-2xl border-border shadow-sm">
+    <Card id="notifications" className="rounded-2xl border-border shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Notifications</CardTitle>
         <CardDescription>Get a nudge before class starts.</CardDescription>

@@ -59,7 +59,7 @@ export function ChangePasswordCard() {
   });
 
   return (
-    <Card className="rounded-2xl border-border shadow-sm">
+    <Card id="password" className="rounded-2xl border-border shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold">Change password</CardTitle>
         <CardDescription>Update the password you sign in with.</CardDescription>

@@ -4,22 +4,10 @@ import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { CalendarCheck, Bell, ChevronUp, LogOut, Moon, Sun, User } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useLogout, useMe } from "@/hooks/useAuth";
+import { CalendarCheck, Moon, Sun } from "lucide-react";
+import { ProfileMenu } from "@/components/layout/ProfileMenu";
 import { NAV_ITEMS } from "@/lib/navigation";
 import { cn } from "cn";
-
-export function initials(firstName?: string, lastName?: string) {
-  return `${firstName?.[0] ?? ""}${lastName?.[0] ?? ""}`.toUpperCase() || "S";
-}
 
 /** Hydration flag: false while server-rendering, true on the client. */
 const noopSubscribe = () => () => {};
@@ -74,8 +62,6 @@ export function ThemeToggle({ className }: { className?: string }) {
 /** Fixed desktop sidebar: logo, primary navigation, user card. */
 export function Sidebar() {
   const pathname = usePathname();
-  const { data: user } = useMe();
-  const logout = useLogout();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-sidebar-border bg-sidebar md:flex">
@@ -121,60 +107,7 @@ export function Sidebar() {
 
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-1 px-1 py-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1 py-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground"
-                >
-                  {initials(user?.firstName, user?.lastName)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-sidebar-foreground">
-                    {user ? `${user.firstName} ${user.lastName}` : "Your account"}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {user?.email ?? ""}
-                  </span>
-                </span>
-                <ChevronUp
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top" className="w-60">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                {user?.email ?? "Your account"}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  <User className="size-4" aria-hidden="true" />
-                  Your account
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings#notifications">
-                  <Bell className="size-4" aria-hidden="true" />
-                  Notifications
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => logout.mutate()}
-                disabled={logout.isPending}
-                className="text-destructive focus:text-destructive"
-              >
-                <LogOut className="size-4" aria-hidden="true" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ProfileMenu variant="full" />
           <ThemeToggle className="hover:bg-muted" />
         </div>
       </div>
