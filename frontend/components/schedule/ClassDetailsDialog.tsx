@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarOff, Clock, MapPin, NotebookPen, Plus, Trash2, User, X } from "lucide-react";
+import { CalendarOff, CalendarPlus, Clock, MapPin, NotebookPen, Plus, Trash2, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +17,7 @@ import { EditClassDialog } from "@/components/schedule/EditClassDialog";
 import { useDeleteEntry } from "@/hooks/useDeleteEntry";
 import { useUpdateEntry } from "@/hooks/useUpdateEntry";
 import { KIND_META, kindOf } from "@/lib/kind";
+import { googleCalendarUrl } from "@/lib/googleCalendar";
 import { dayLabel, formatIsoDateLabel, formatTimeRange } from "@/lib/time";
 import type { Entry, EntryPayload } from "@/types";
 
@@ -263,14 +264,28 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
           </div>
 
           <div className="flex flex-wrap justify-between gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setConfirmingDelete(true)}
-              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-              Delete
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmingDelete(true)}
+                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                Delete
+              </Button>
+              <Button variant="outline" asChild>
+                <a
+                  href={googleCalendarUrl(entry)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open this event in Google Calendar"
+                >
+                  <CalendarPlus className="size-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">Google Calendar</span>
+                  <span className="sm:hidden">Google</span>
+                </a>
+              </Button>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close
