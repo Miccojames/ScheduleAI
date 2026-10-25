@@ -122,10 +122,10 @@ The backend only accepts browser requests from the exact frontend origin
 
 ---
 
-## Step 4b — Email sending with Resend (5 min) ⚠️ needed before real sign-ups
+## Step 4b — Email sending with Gmail SMTP / Resend (5 min) ⚠️ needed before real sign-ups
 
-New accounts can't sign in until they click the verification link we email
-them — so with no SMTP configured, sign-ups are created but stuck at
+New accounts can't sign in until they enter the 6-digit verification code we
+email them — so with no SMTP configured, sign-ups are created but stuck at
 "verify your email". (Password-reset emails use the same settings.)
 
 1. Create a free account at <https://resend.com> → **API Keys** → create one
@@ -151,9 +151,10 @@ them — so with no SMTP configured, sign-ups are created but stuck at
    | `SMTP_FROM` | `ScheduleAI <no-reply@yourdomain.com>` | `ScheduleAI <you@gmail.com>` |
 
 4. **Test it:** register a fresh account on the deployed app → the
-   verification email arrives → click the link → you can sign in.
-   Locally nothing is configured by default: the link is printed to the
-   server console (and the register screen shows an "open the link" button).
+   verification email arrives → type the 6-digit code → you're signed in
+   flow continues at the login screen. Locally nothing is configured by
+   default: the code is printed to the server console (and the register
+   screen shows it in a "Running locally — dev shortcut" box).
 
 Swapping providers later is just editing these env vars — no code changes.
 
@@ -164,7 +165,7 @@ Swapping providers later is just editing these env vars — no code changes.
 Open your Vercel URL and run through:
 
 1. **Register** a new account (use a fresh email — production DB is your real Neon DB)
-   → **check your inbox** and click the verification link → sign in.
+   → **check your inbox** and enter the 6-digit code → sign in.
 2. **Upload Schedule** → scan a photo → the review page shows your real classes.
 3. **Save Schedule** → check the *Schedules* page.
 4. **Export**: try the `.ics` download and the *Google Calendar* button.
@@ -176,15 +177,16 @@ The same suite used in development works against the deployed API:
 
 ```bash
 cd backend
-# Against production the API never exposes verification tokens, so hand the
+# Against production the API never exposes verification codes, so hand the
 # suite your direct (non-pooler) Neon URL — it stamps its own test rows:
 SMOKE_DB_URL="postgresql://…" npm run smoke -- https://scheduleai-api.onrender.com
 ```
 
 It creates throwaway `smoke-*@example.com` accounts (delete them afterwards from
-the admin panel / database if you care). Expect `37 passed, 0 failed` locally
-(one token-reuse check is skipped in production, where the token never leaves
-the API). Note: the first request may take ~30 s while the free service wakes up.
+the admin panel / database if you care). Expect `39 passed, 0 failed` locally
+(two code-reuse/wipe checks are skipped in production, where the code never
+leaves the API). Note: the first request may take ~30 s while the free service
+wakes up.
 
 ---
 

@@ -9,9 +9,9 @@
 #         (BASE_URL defaults to http://localhost:5000)
 #
 # Email verification: a freshly registered account can't sign in until the
-# mailed link is consumed. Against a dev backend (SMTP unconfigured) the
-# register response carries `verificationUrl`, so the script follows it. For
-# production runs — where the token never leaves the API — export
+# 6-digit code from the email is entered. Against a non-production backend the
+# register response carries `verificationCode`, so the script submits it. For
+# production runs — where the code never leaves the API — export
 #   SMOKE_DB_URL="<direct postgres url>"
 # and the script stamps the test row in the DB instead.
 #
@@ -72,21 +72,41 @@ print(v if v is not None else '')
 # verify_user <register-json> <email> <label>
 # Completes email verification for a freshly registered account so the login
 # steps that follow can succeed:
-#   - Dev backends (SMTP unconfigured) return `verificationUrl` in the register
-#     response — the same link they print to the server console.
-#   - Production NEVER returns the token (that would defeat verification), so
+#   - Non-production backends return `verificationCode` in the register
+#     response — the same 6-digit code that was emailed.
+#   - Production NEVER returns the code (that would defeat verification), so
 #     set SMOKE_DB_URL to stamp the row directly in the DB instead.
+# If the original code was already burned (the brute-force guard test below),
+# it falls back to resend-verification, which hands a fresh code back in dev.
 verify_user() {
   local reg_json="$1" email="$2" label="$3"
-  local url token http
-  url=$(json_get "$reg_json" "d['data'].get('verificationUrl') or ''")
-  if [ -n "$url" ]; then
-    token="${url##*token=}"
-    SMOKE_LAST_TOKEN="$token"
+  local code http fresh
+  code=$(json_get "$reg_json" "d['data'].get('verificationCode') or ''")
+  if [ -n "$code" ]; then
     http=$(curl -s -o "$TMPDIR_SMOKE/verify.json" -w "%{http_code}" \
       -H "Content-Type: application/json" \
-      -d "{\"token\":\"$token\"}" \
+      -d "{\"email\":\"$email\",\"code\":\"$code\"}" \
       "$BASE_URL/api/auth/verify-email")
+    if [ "$http" != "200" ]; then
+      # Code was wiped by the attempt cap — ask for a fresh one (dev echo).
+      curl -s -o "$TMPDIR_SMOKE/resend_fresh.json" \
+        -H "Content-Type: application/json" \
+        -d "{\"email\":\"$email\"}" \
+        "$BASE_URL/api/auth/resend-verification" >/dev/null
+      fresh=$(json_get "$TMPDIR_SMOKE/resend_fresh.json" "(d.get('data') or {}).get('verificationCode') or ''")
+      if [ -n "$fresh" ]; then
+        http=$(curl -s -o "$TMPDIR_SMOKE/verify.json" -w "%{http_code}" \
+          -H "Content-Type: application/json" \
+          -d "{\"email\":\"$email\",\"code\":\"$fresh\"}" \
+          "$BASE_URL/api/auth/verify-email")
+        SMOKE_LAST_CODE="$fresh"
+        [ "$http" = "200" ] \
+          && check "$label: wiped code → resend → fresh code verifies → 200" 0 \
+          || check "$label: wiped code → resend → fresh code verifies → 200 (got $http)" 1
+        return
+      fi
+    fi
+    SMOKE_LAST_CODE="$code"
     [ "$http" = "200" ] \
       && check "$label: POST /api/auth/verify-email → 200" 0 \
       || check "$label: POST /api/auth/verify-email → 200 (got $http)" 1
@@ -99,7 +119,7 @@ verify_user() {
       check "$label: marked verified via SMOKE_DB_URL (prisma db execute failed)" 1
     fi
   else
-    check "$label: verification possible (no verificationUrl in response — set SMOKE_DB_URL for production runs)" 1
+    check "$label: verification possible (no verificationCode in response — set SMOKE_DB_URL for production runs)" 1
   fi
 }
 
@@ -205,27 +225,30 @@ HTTP=$(curl -s -c "$JAR_LOGIN" -o "$TMPDIR_SMOKE/login_a.json" -w "%{http_code}"
 echo ""
 echo "--- Email verification ---"
 
-# Clicking the same link twice must not confuse anyone: an already-consumed
-# token on a verified account reports success ("already verified"), not 400.
-if [ -n "${SMOKE_LAST_TOKEN:-}" ]; then
+# Submitting the same code twice must not confuse anyone: an already-used
+# code on a verified account reports success ("already verified"), not 400.
+if [ -n "${SMOKE_LAST_CODE:-}" ]; then
   HTTP=$(curl -s -o "$TMPDIR_SMOKE/verify_twice.json" -w "%{http_code}" \
     -H "Content-Type: application/json" \
-    -d "{\"token\":\"$SMOKE_LAST_TOKEN\"}" \
+    -d "{\"email\":\"$EMAIL_A\",\"code\":\"$SMOKE_LAST_CODE\"}" \
     "$BASE_URL/api/auth/verify-email")
   MSG=$(json_get "$TMPDIR_SMOKE/verify_twice.json" "d.get('message')")
   [ "$HTTP" = "200" ] && printf '%s' "$MSG" | grep -qi "already" \
-    && check "verify-email reused token → 200 'already verified'" 0 \
-    || check "verify-email reused token → 200 'already verified' (got $HTTP, msg=$MSG)" 1
+    && check "verify-email reused code → 200 'already verified'" 0 \
+    || check "verify-email reused code → 200 'already verified' (got $HTTP, msg=$MSG)" 1
 else
-  echo "SKIP  verify-email reused token (production run — token not exposed by the API)"
+  echo "SKIP  verify-email reused code (production run — code not exposed by the API)"
 fi
 
-# A forged/garbage token must be rejected outright.
+# A wrong code must be rejected outright (and counts an attempt against the
+# code — here it's already spent, so no live code can be harmed).
+BOGUS_CODE="999999"
+[ "${SMOKE_LAST_CODE:-}" = "$BOGUS_CODE" ] && BOGUS_CODE="888888"
 HTTP=$(curl -s -o "$TMPDIR_SMOKE/verify_bad.json" -w "%{http_code}" \
   -H "Content-Type: application/json" \
-  -d '{"token":"0000000000000000000000000000000000000000000000000000000000000000"}' \
+  -d "{\"email\":\"$EMAIL_A\",\"code\":\"$BOGUS_CODE\"}" \
   "$BASE_URL/api/auth/verify-email")
-[ "$HTTP" = "400" ] && check "verify-email bogus token → 400" 0 || check "verify-email bogus token → 400 (got $HTTP)" 1
+[ "$HTTP" = "400" ] && check "verify-email wrong code → 400" 0 || check "verify-email wrong code → 400 (got $HTTP)" 1
 
 # Resend answers identically for unknown and already-verified addresses —
 # always 202, so callers can't probe which emails are registered.
@@ -326,7 +349,39 @@ HTTP=$(curl -s -c "$JAR_B" -o "$TMPDIR_SMOKE/reg_b.json" -w "%{http_code}" \
   "$BASE_URL/api/auth/register")
 [ "$HTTP" = "201" ] && check "register user B → 201" 0 || check "register user B → 201 (got $HTTP)" 1
 
-# B must verify too — an unverified account can't sign in at all.
+# Brute-force guard on B's freshly-minted code: five wrong guesses must each
+# bounce with 400, and after the fifth the code deletes itself — even the
+# CORRECT code is dead until a fresh one is issued (verify_user's resend
+# fallback below proves recovery works).
+CODE_B=$(json_get "$TMPDIR_SMOKE/reg_b.json" "d['data'].get('verificationCode') or ''")
+WRONG_CODE="000000"
+[ "$CODE_B" = "$WRONG_CODE" ] && WRONG_CODE="111111"
+ALL400=1
+for _ in 1 2 3 4 5; do
+  HTTP=$(curl -s -o "$TMPDIR_SMOKE/verify_wrong.json" -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$EMAIL_B\",\"code\":\"$WRONG_CODE\"}" \
+    "$BASE_URL/api/auth/verify-email")
+  [ "$HTTP" = "400" ] || ALL400=0
+done
+[ "$ALL400" = "1" ] \
+  && check "5 wrong codes → 400 each (attempt counter climbs)" 0 \
+  || check "5 wrong codes → 400 each (last got $HTTP)" 1
+
+if [ -n "$CODE_B" ]; then
+  HTTP=$(curl -s -o "$TMPDIR_SMOKE/verify_wiped.json" -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$EMAIL_B\",\"code\":\"$CODE_B\"}" \
+    "$BASE_URL/api/auth/verify-email")
+  [ "$HTTP" = "400" ] \
+    && check "correct code REJECTED after 5 wrong guesses (wipe worked)" 0 \
+    || check "correct code REJECTED after 5 wrong guesses (wipe worked) (got $HTTP — guard failed!)" 1
+else
+  echo "SKIP  attempt-cap wipe (production run — code not exposed by the API)"
+fi
+
+# B must verify too — an unverified account can't sign in at all. (In dev the
+# original code was just wiped above, so this exercises the resend fallback.)
 verify_user "$TMPDIR_SMOKE/reg_b.json" "$EMAIL_B" "user B"
 
 # Registering no longer signs anyone in — log B in so the isolation checks

@@ -83,9 +83,16 @@ export const changePasswordSchema = z.object({
 // ── Email verification ────────────────────────────────────────────────────
 
 export const verifyEmailSchema = z.object({
-  token: z
-    .string({ error: "Verification token is required" })
-    .min(10, "Verification link is invalid"),
+  email: z
+    .string({ error: "Email is required" })
+    .trim()
+    .toLowerCase()
+    .email("Please enter a valid email address")
+    .max(254, "Email must be at most 254 characters"),
+  code: z
+    .string({ error: "Verification code is required" })
+    .trim()
+    .regex(/^\d{6}$/, "Enter the 6-digit code from your email"),
 });
 
 export const resendVerificationSchema = z.object({

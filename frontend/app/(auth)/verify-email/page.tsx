@@ -1,202 +1,171 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertCircle, Loader2, MailCheck } from "lucide-react";
+import { Info, Loader2, MailCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useResendVerification, useVerifyEmail } from "@/hooks/useAuth";
-import { ApiError, apiErrorMessage } from "@/services/api";
+import { VerifyCodeForm } from "@/components/auth/verify-code-form";
 
-const resendSchema = z.object({
+const emailSchema = z.object({
   email: z.email("Enter a valid email address."),
 });
 
-type ResendValues = z.infer<typeof resendSchema>;
+type EmailValues = z.infer<typeof emailSchema>;
+
+// sessionStorage is a browser-only external store: subscribe is a no-op
+// (nothing else writes it mid-session), the server snapshot is null so SSR
+// stays deterministic, and the client snapshot swaps in the address right
+// after hydration — the sanctioned way to read storage without an effect.
+const subscribeNoop = () => () => {};
+const getStoredEmail = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem("scheduleai:registeredEmail");
+  } catch {
+    return null; // Storage unavailable (private mode).
+  }
+};
 
 /**
- * Landing page for the link we mail at registration. Three states:
- *  verifying (spinner) → verified (auto-redirect to sign-in) or
- *  failed (message + a form that mails a fresh link).
+ * Standalone code-entry screen: where old verification LINKS now land (they
+ * carry a ?token= we no longer honour — the notice explains the switch), and
+ * a way back into the flow if someone closes the register screen and later
+ * needs to enter their code without going through login first.
  */
 function VerifyEmailContent() {
-  const token = useSearchParams().get("token");
-  const verify = useVerifyEmail();
-  const resend = useResendVerification();
-  const attempted = useRef(false);
-  const [resendSent, setResendSent] = useState(false);
-  const [resendError, setResendError] = useState<string | null>(null);
+  const router = useRouter();
+  const hasLegacyToken = Boolean(useSearchParams().get("token"));
+
+  const storedEmail = useSyncExternalStore(subscribeNoop, getStoredEmail, () => null);
+  // Address chosen on this screen wins over the one handed over by register.
+  const [chosenEmail, setChosenEmail] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const email = editing ? null : (chosenEmail ?? storedEmail);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ResendValues>({
-    resolver: zodResolver(resendSchema),
+  } = useForm<EmailValues>({
+    resolver: zodResolver(emailSchema),
     defaultValues: { email: "" },
   });
 
-  // Fire exactly once — StrictMode double-invokes effects in dev, and a token
-  // is single-use (the API is idempotent for already-used links, but there's
-  // no reason to ask twice).
-  useEffect(() => {
-    if (!token || attempted.current) return;
-    attempted.current = true;
-    verify.mutate(token);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  const onResend = handleSubmit(async (values) => {
-    setResendError(null);
-    try {
-      await resend.mutateAsync({ email: values.email });
-      setResendSent(true);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 429) {
-        setResendError("Too many attempts. Wait a few minutes, then try again.");
-        return;
+  const onVerified = () => {
+    if (email) {
+      try {
+        window.sessionStorage.setItem("scheduleai:registeredEmail", email);
+      } catch {
+        // Storage unavailable — the login field just starts empty.
       }
-      setResendError(apiErrorMessage(error, "We couldn't send the email. Try again."));
+    }
+    toast.success("Email verified — sign in to continue.");
+    router.push("/login");
+  };
+
+  const onEmailSubmit = handleSubmit((values) => {
+    setChosenEmail(values.email);
+    setEditing(false);
+    try {
+      window.sessionStorage.setItem("scheduleai:registeredEmail", values.email);
+    } catch {
+      // Storage unavailable — harmless, the form keeps the value in state.
     }
   });
-
-  // Server render has no mutation in flight yet — the page must default to
-  // "verifying" and only claim done/failed once react-query settles, so the
-  // SSR HTML never flashes a false "Email verified" before hydration.
-  const phase: "missing" | "verifying" | "failed" | "done" = !token
-    ? "missing"
-    : verify.isError
-      ? "failed"
-      : verify.isSuccess
-        ? "done"
-        : "verifying";
-
-  const failureMessage = verify.error
-    ? apiErrorMessage(verify.error, "This verification link is invalid or has expired.")
-    : "This verification link is invalid or has expired.";
-
-  const resendForm = (
-    <form onSubmit={onResend} className="space-y-3" noValidate>
-      <div className="space-y-1.5">
-        <Label htmlFor="resend-email">Your email address</Label>
-        <Input
-          id="resend-email"
-          type="email"
-          autoComplete="email"
-          placeholder="you@school.edu"
-          aria-invalid={Boolean(errors.email)}
-          {...register("email")}
-        />
-        {errors.email ? (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        ) : null}
-      </div>
-      <Button type="submit" variant="secondary" className="w-full" disabled={resend.isPending}>
-        {resend.isPending ? (
-          <>
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Sending…
-          </>
-        ) : resendSent ? (
-          "New link sent ✓"
-        ) : (
-          "Email me a new link"
-        )}
-      </Button>
-      {resendSent ? (
-        <p className="text-xs text-muted-foreground" role="status">
-          If that address needs verification, a fresh link is on its way — it expires 24 hours
-          after it arrives.
-        </p>
-      ) : null}
-      {resendError ? (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-        >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <span>{resendError}</span>
-        </div>
-      ) : null}
-    </form>
-  );
 
   return (
     <Card className="rounded-2xl border-border shadow-sm">
       <CardHeader className="space-y-1.5">
         <CardTitle className="text-xl font-semibold tracking-tight">
-          {phase === "missing"
-            ? "Link incomplete"
-            : phase === "verifying"
-              ? "Verifying your email"
-              : phase === "failed"
-                ? "That link didn't work"
-                : "Email verified"}
+          {email ? "Enter your verification code" : "Verify your email"}
         </CardTitle>
         <CardDescription>
-          {phase === "missing"
-            ? "This address is missing the verification token."
-            : phase === "verifying"
-              ? "One moment while we confirm your address."
-              : phase === "failed"
-                ? "The link may have expired or already been used."
-                : "Your account is active — sign in to start planning."}
+          {email ? (
+            <>
+              Type the 6-digit code we sent to{" "}
+              <span className="font-medium text-foreground">{email}</span>.
+            </>
+          ) : (
+            "Enter your email and we&apos;ll walk you through verification."
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {phase === "verifying" ? (
+        {hasLegacyToken ? (
           <div
             role="status"
-            className="flex items-center justify-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-6 text-sm text-muted-foreground"
+            className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-300"
           >
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Verifying…
-          </div>
-        ) : null}
-
-        {phase === "done" ? (
-          <div
-            role="status"
-            className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-700 dark:text-emerald-300"
-          >
-            <MailCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>
-              {verify.data ? "Email verified. Taking you to sign in…" : "Email verified."}
+              Verification links have been replaced by 6-digit codes — this link no longer works.
+              Enter the code from your most recent email instead (or request a new one below).
             </span>
           </div>
         ) : null}
 
-        {phase === "missing" || phase === "failed" ? (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-          >
-            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <span>{failureMessage}</span>
-          </div>
-        ) : null}
+        {email ? (
+          <>
+            <div
+              role="status"
+              className="flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-700 dark:text-emerald-300"
+            >
+              <MailCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>
+                The code expires in <strong>10 minutes</strong>. Check spam if it hasn&apos;t
+                arrived in a minute.
+              </span>
+            </div>
 
-        {phase === "done" ? (
-          <Button asChild className="w-full">
-            <Link href="/login">Continue to sign in</Link>
-          </Button>
-        ) : null}
+            <VerifyCodeForm email={email} autoFocus onVerified={onVerified} />
 
-        {phase === "missing" || phase === "failed" ? resendForm : null}
+            <p className="text-center text-sm text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="font-medium text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+              >
+                Verify a different email
+              </button>
+            </p>
+          </>
+        ) : (
+          <form onSubmit={onEmailSubmit} className="space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="verify-email-input">Email</Label>
+              <Input
+                id="verify-email-input"
+                type="email"
+                autoComplete="email"
+                placeholder="you@school.edu"
+                autoFocus
+                aria-invalid={Boolean(errors.email)}
+                {...register("email")}
+              />
+              {errors.email ? (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              ) : null}
+            </div>
 
-        {phase === "missing" || phase === "failed" ? (
-          <p className="text-center text-sm text-muted-foreground">
-            <Link href="/login" className="font-medium text-primary hover:text-primary">
-              Back to sign in
-            </Link>
-          </p>
-        ) : null}
+            <Button type="submit" className="w-full">
+              Continue
+            </Button>
+          </form>
+        )}
+
+        <p className="text-center text-sm text-muted-foreground">
+          <Link href="/login" className="font-medium text-primary hover:text-primary">
+            Back to sign in
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

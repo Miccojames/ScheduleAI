@@ -37,14 +37,14 @@ function hintCookieOptions() {
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as RegisterInput;
-  const { user, verificationUrl } = await authService.registerUser(body);
-  // No session cookie here: the user verifies their email, then signs in from
-  // the login screen (a deliberate flow choice — the account is created, the
-  // login form is shown with the email pre-filled).
-  // `verificationUrl` exists only in dev (no SMTP): it mirrors the link that
-  // was just printed to the server console so the flow is clickable locally.
+  const { user, verificationCode } = await authService.registerUser(body);
+  // No session cookie here: the user enters their emailed code, then signs in
+  // from the login screen (a deliberate flow choice — the account is created,
+  // the login form is shown with the email pre-filled).
+  // `verificationCode` exists only outside production: it mirrors the code
+  // that was just mailed so local flows and the smoke suite can complete.
   sendSuccess(res, {
-    data: { user, ...(verificationUrl ? { verificationUrl } : {}) },
+    data: { user, ...(verificationCode ? { verificationCode } : {}) },
     message: "Account created successfully.",
     status: 201,
   });
@@ -112,7 +112,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
 
 export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as VerifyEmailInput;
-  const { user, alreadyVerified } = await authService.verifyEmail(body.token);
+  const { user, alreadyVerified } = await authService.verifyEmail(body.email, body.code);
   sendSuccess(res, {
     data: { user },
     message: alreadyVerified
@@ -125,11 +125,12 @@ export const resendVerification = asyncHandler(async (req: Request, res: Respons
   const body = req.body as ResendVerificationInput;
   // Always the same 202: unknown addresses, already-verified accounts and
   // real resends are indistinguishable (no account enumeration).
-  await authService.resendVerification(body.email);
+  const verificationCode = await authService.resendVerification(body.email);
   sendSuccess(res, {
-    data: null,
+    // The code comes back only outside production (local dev shortcut).
+    data: verificationCode ? { verificationCode } : null,
     status: 202,
-    message: "If that address needs verification, a new link is on its way.",
+    message: "If that address needs verification, a new code is on its way.",
   });
 });
 

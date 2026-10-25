@@ -2,8 +2,8 @@ import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
 
 // Outbound mail. Three rules matter here:
-//  1. In dev (SMTP_HOST empty) we just print the link so the flow is testable
-//     without a real mail server.
+//  1. In dev (SMTP_HOST empty) we just print the code/link so the flow is
+//     testable without a real mail server.
 //  2. Never throw into the request path — a mail failure must NOT change the
 //     API response (that would let callers probe which emails exist). We log
 //     the real error server-side and swallow it.
@@ -21,8 +21,14 @@ function transport() {
   });
 }
 
-/** Dev mode: no SMTP configured — print the link instead of sending. */
-function printToConsole(label: string, to: string, link: string, validity: string): void {
+/** Dev mode: no SMTP configured — print the value instead of sending. */
+function printToConsole(
+  label: string,
+  to: string,
+  detailLabel: string,
+  detailValue: string,
+  validity: string,
+): void {
   console.log(
     [
       "",
@@ -30,7 +36,7 @@ function printToConsole(label: string, to: string, link: string, validity: strin
       `  📧  [DEV] ${label} email (SMTP not configured)`,
       "──────────────────────────────────────────────────────────",
       `  To:      ${to}`,
-      `  Link:    ${link}`,
+      `  ${detailLabel}:   ${detailValue}`,
       `  Valid:   ${validity}`,
       "──────────────────────────────────────────────────────────",
       "",
@@ -43,7 +49,7 @@ export async function sendPasswordResetEmail(to: string, rawToken: string): Prom
 
   try {
     if (!env.SMTP_HOST) {
-      printToConsole("Password reset", to, resetUrl, "30 minutes");
+      printToConsole("Password reset", to, "Link", resetUrl, "30 minutes");
       return;
     }
 
@@ -72,33 +78,31 @@ export async function sendPasswordResetEmail(to: string, rawToken: string): Prom
 }
 
 /**
- * Email-verification mail, sent the moment an account is created (and on
- * every resend). Plain-text always; a small HTML twin for mail clients that
- * prefer it — email HTML is intentionally self-contained (no app tokens,
+ * Verification-code mail, sent the moment an account is created (and on every
+ * resend). Plain-text always; a small HTML twin for mail clients that prefer
+ * it — email HTML is intentionally self-contained (no app links to follow,
  * dark mode is handled by the client).
  */
 export async function sendVerificationEmail(
   to: string,
   firstName: string,
-  rawToken: string,
+  code: string,
 ): Promise<void> {
-  const verifyUrl = `${env.FRONTEND_URL}/verify-email?token=${rawToken}`;
-
   try {
     if (!env.SMTP_HOST) {
-      printToConsole("Email verification", to, verifyUrl, "24 hours");
+      printToConsole("Email verification", to, "Code", code, "10 minutes");
       return;
     }
 
     const text = [
       `Hi ${firstName},`,
       "",
-      "Thanks for creating a ScheduleAI account.",
-      "Confirm your email address to activate it:",
+      "Here is your ScheduleAI verification code:",
       "",
-      verifyUrl,
+      `    ${code}`,
       "",
-      "This link works once and expires in 24 hours.",
+      "Enter it in the app to activate your account.",
+      "The code works once and expires in 10 minutes.",
       "Didn't create an account? You can safely ignore this email.",
     ].join("\n");
 
@@ -109,10 +113,11 @@ export async function sendVerificationEmail(
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:32px;">
         <div style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#4f46e5;">ScheduleAI</div>
         <h1 style="font-size:21px;line-height:1.3;margin:18px 0 10px;color:#111827;">Verify your email, ${escapeHtml(firstName)}</h1>
-        <p style="font-size:15px;line-height:1.6;color:#4b5563;margin:0 0 26px;">Thanks for creating an account. Confirm this address to activate your schedule.</p>
-        <a href="${verifyUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:13px 22px;border-radius:10px;">Verify my email</a>
-        <p style="font-size:13px;line-height:1.65;color:#6b7280;margin:26px 0 0;">This link works once and expires in <strong>24 hours</strong>. If the button doesn&apos;t work, paste this into your browser:</p>
-        <p style="font-size:12px;line-height:1.6;color:#4f46e5;word-break:break-all;margin:8px 0 0;">${verifyUrl}</p>
+        <p style="font-size:15px;line-height:1.6;color:#4b5563;margin:0 0 22px;">Enter this code in the app to activate your account:</p>
+        <div style="background:#f3f4f6;border:1px dashed #c7d2fe;border-radius:12px;padding:18px 12px;text-align:center;">
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;font-weight:700;letter-spacing:.32em;color:#4338ca;padding-left:.32em;">${code}</span>
+        </div>
+        <p style="font-size:13px;line-height:1.65;color:#6b7280;margin:20px 0 0;">The code works once and expires in <strong>10 minutes</strong>. If it has expired, request a new one from the sign-in screen.</p>
         <p style="font-size:13px;line-height:1.6;color:#9ca3af;margin:22px 0 0;">Didn&apos;t create a ScheduleAI account? You can safely ignore this email.</p>
       </div>
     </div>
@@ -122,7 +127,7 @@ export async function sendVerificationEmail(
     await transport().sendMail({
       from: env.SMTP_FROM,
       to,
-      subject: "Verify your email — ScheduleAI",
+      subject: "Your ScheduleAI verification code",
       text,
       html,
     });

@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
-import { env, isProduction } from "../config/env.js";
+import { isProduction } from "../config/env.js";
 import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "../utils/errors.js";
-import { generateRawToken, hashToken } from "../utils/tokens.js";
+import { generateRawToken, generateVerificationCode, hashToken, hashVerificationCode } from "../utils/tokens.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./email.service.js";
 import type {
   LoginInput,
@@ -12,7 +12,15 @@ import type {
 
 const BCRYPT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const VERIFY_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes — codes are time-sensitive
+// Wrong guesses allowed per live code before it deletes itself. 6 digits is a
+// small keyspace, so this cap (plus the per-IP limiter on the endpoint) is the
+// actual brute-force guard.
+const MAX_VERIFY_ATTEMPTS = 5;
+
+// Every failed verify (wrong code, expired code, unknown address) returns the
+// same message — a caller can't probe which accounts exist or how close they are.
+const VERIFY_FAILED_MESSAGE = "That code is incorrect or has expired.";
 
 // Public user shape returned by the API (never includes passwordHash).
 export interface PublicUser {
@@ -42,29 +50,29 @@ function toPublicUser(user: {
 export interface RegisterResult {
   user: PublicUser;
   /**
-   * Dev-only escape hatch: the verification link, present exactly when no
-   * mail is sent (SMTP unconfigured outside production) — it also prints to
-   * the server console. Never returned in production: handing the token back
-   * to the caller would let anyone "verify" an address they don't own.
+   * Dev-only escape hatch: the 6-digit code, returned whenever the API runs
+   * outside production so local flows (and the smoke suite, which now has
+   * working SMTP locally and can't read the mailbox) can complete. Production
+   * NEVER returns it: it would let anyone "verify" an address they don't own.
    */
-  verificationUrl?: string;
+  verificationCode?: string;
 }
 
-/** Mint a single live verification token for the account and mail the link. */
-async function issueVerificationToken(userId: string): Promise<string> {
-  // One live token at a time: a resend invalidates anything outstanding.
+/** Mint the single live verification code for the account and mail it. */
+async function issueVerificationCode(userId: string): Promise<string> {
+  // One live code at a time: a resend invalidates anything outstanding.
   await prisma.emailVerificationToken.deleteMany({
     where: { userId, usedAt: null },
   });
-  const rawToken = generateRawToken();
+  const code = generateVerificationCode();
   await prisma.emailVerificationToken.create({
     data: {
       userId,
-      tokenHash: hashToken(rawToken),
-      expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
+      tokenHash: hashVerificationCode(userId, code),
+      expiresAt: new Date(Date.now() + VERIFY_CODE_TTL_MS),
     },
   });
-  return rawToken;
+  return code;
 }
 
 export async function registerUser(input: RegisterInput): Promise<RegisterResult> {
@@ -82,27 +90,24 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
         lastName: input.lastName.trim(),
         email,
         passwordHash,
-        // NULL until the mailed link is clicked — authenticateUser gates on it.
+        // NULL until the emailed code is entered — authenticateUser gates on it.
         emailVerifiedAt: null,
       },
     });
 
     // Verification plumbing must not break registration itself: if minting
-    // the token fails, the account still exists and the user can hit
-    // "resend" from the login screen.
-    let verificationUrl: string | undefined;
+    // the code fails, the account still exists and the user can hit "resend"
+    // from the login screen.
+    let verificationCode: string | undefined;
     try {
-      const rawToken = await issueVerificationToken(user.id);
-      await sendVerificationEmail(user.email, user.firstName, rawToken);
-      verificationUrl =
-        !isProduction && !env.SMTP_HOST
-          ? `${env.FRONTEND_URL}/verify-email?token=${rawToken}`
-          : undefined;
+      const code = await issueVerificationCode(user.id);
+      await sendVerificationEmail(user.email, user.firstName, code);
+      verificationCode = !isProduction ? code : undefined;
     } catch (err) {
-      console.error(`[auth] Could not issue verification token for ${email}:`, err);
+      console.error(`[auth] Could not issue verification code for ${email}:`, err);
     }
 
-    return { user: toPublicUser(user), verificationUrl };
+    return { user: toPublicUser(user), verificationCode };
   } catch (err: unknown) {
     // Race on the unique email — map to the same friendly 409.
     if ((err as { code?: string })?.code === "P2002") {
@@ -131,68 +136,97 @@ export async function authenticateUser(input: LoginInput): Promise<PublicUser> {
 }
 
 /**
- * Consume the raw token from the mailed link and stamp the account as
- * verified. Idempotent on the happy path: clicking a link twice (or landing
- * on it after it was used) reports success instead of a confusing error.
+ * Consume the 6-digit code the user typed and stamp the account as verified.
+ * Wrong guesses increment the code's attempt counter; the fifth one deletes
+ * the code outright. Re-submitting the code that was already used reports
+ * success instead of a confusing error (idempotent double-entry).
  */
 export async function verifyEmail(
-  rawToken: string
+  email: string,
+  rawCode: string
 ): Promise<{ user: PublicUser; alreadyVerified: boolean }> {
-  const tokenHash = hashToken(rawToken);
-  const record = await prisma.emailVerificationToken.findUnique({
-    where: { tokenHash },
-    include: { user: true },
-  });
-
-  if (!record) throw new BadRequestError("This verification link is invalid or has expired.");
-
-  if (record.usedAt !== null) {
-    // Already consumed — fine if the account ended up verified, otherwise the
-    // link is stale (e.g. the user was un-verified somehow).
-    if (record.user.emailVerifiedAt) {
-      return { user: toPublicUser(record.user), alreadyVerified: true };
-    }
-    throw new BadRequestError("This verification link is invalid or has expired.");
-  }
-
-  if (record.expiresAt <= new Date()) {
-    throw new BadRequestError("This verification link is invalid or has expired.");
-  }
-
-  const user = await prisma.$transaction(async (tx) => {
-    await tx.emailVerificationToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
-    const updated = await tx.user.update({
-      where: { id: record.userId },
-      data: { emailVerifiedAt: record.user.emailVerifiedAt ?? new Date() },
-    });
-    // Invalidate any other still-pending tokens for this user.
-    await tx.emailVerificationToken.deleteMany({
-      where: { userId: record.userId, usedAt: null },
-    });
-    return updated;
-  });
-
-  return { user: toPublicUser(user), alreadyVerified: false };
-}
-
-/**
- * Re-send the verification link. ALWAYS resolves with the same generic
- * behavior: unknown emails, already-verified accounts and real resends are
- * indistinguishable to the caller (no account enumeration), and mail failures
- * never change the response.
- */
-export async function resendVerification(email: string): Promise<void> {
   const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findFirst({
     where: { email: { equals: normalized, mode: "insensitive" } },
   });
-  if (!user || user.emailVerifiedAt) return; // silent no-op — same observable behavior
+  // Unknown address fails exactly like a wrong code — no enumeration.
+  if (!user) throw new BadRequestError(VERIFY_FAILED_MESSAGE);
 
-  const rawToken = await issueVerificationToken(user.id);
-  await sendVerificationEmail(user.email, user.firstName, rawToken);
+  const codeHash = hashVerificationCode(user.id, rawCode.trim());
+  const live = await prisma.emailVerificationToken.findFirst({
+    where: { userId: user.id, usedAt: null },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (live) {
+    if (live.expiresAt > new Date() && live.tokenHash === codeHash) {
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.emailVerificationToken.update({
+          where: { id: live.id },
+          data: { usedAt: new Date() },
+        });
+        const u = await tx.user.update({
+          where: { id: user.id },
+          data: { emailVerifiedAt: user.emailVerifiedAt ?? new Date() },
+        });
+        // Invalidate any other still-pending codes for this user.
+        await tx.emailVerificationToken.deleteMany({
+          where: { userId: user.id, usedAt: null },
+        });
+        return u;
+      });
+      return { user: toPublicUser(updated), alreadyVerified: false };
+    }
+
+    if (live.expiresAt <= new Date()) {
+      // Expired — same generic failure; the resend button takes it from here.
+      throw new BadRequestError(VERIFY_FAILED_MESSAGE);
+    }
+
+    // Wrong code: count the guess. `increment` is atomic, so parallel
+    // guesses can't slip past the cap.
+    const after = await prisma.emailVerificationToken.update({
+      where: { id: live.id },
+      data: { attempts: { increment: 1 } },
+    });
+    if (after.attempts >= MAX_VERIFY_ATTEMPTS) {
+      await prisma.emailVerificationToken.deleteMany({ where: { id: live.id } });
+      throw new BadRequestError(
+        "Too many incorrect attempts — this code has been cancelled. Request a new one."
+      );
+    }
+    throw new BadRequestError(VERIFY_FAILED_MESSAGE);
+  }
+
+  // No live code: either this one was already consumed (idempotent re-entry
+  // with the same code) or it never existed for this address.
+  const spent = await prisma.emailVerificationToken.findFirst({
+    where: { userId: user.id, tokenHash: codeHash },
+    orderBy: { createdAt: "desc" },
+  });
+  if (spent && spent.usedAt !== null && user.emailVerifiedAt) {
+    return { user: toPublicUser(user), alreadyVerified: true };
+  }
+  throw new BadRequestError(VERIFY_FAILED_MESSAGE);
+}
+
+/**
+ * Re-send the verification code (a fresh one invalidates the old). ALWAYS
+ * resolves with the same generic behavior: unknown emails, already-verified
+ * accounts and real resends are indistinguishable to the caller (no account
+ * enumeration), and mail failures never change the response.
+ * Returns the code itself only outside production (dev/smoke escape hatch).
+ */
+export async function resendVerification(email: string): Promise<string | undefined> {
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: normalized, mode: "insensitive" } },
+  });
+  if (!user || user.emailVerifiedAt) return undefined; // silent no-op
+
+  const code = await issueVerificationCode(user.id);
+  await sendVerificationEmail(user.email, user.firstName, code);
+  return !isProduction ? code : undefined;
 }
 
 export async function getUserById(id: string): Promise<PublicUser | null> {

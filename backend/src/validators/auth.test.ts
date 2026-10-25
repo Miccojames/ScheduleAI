@@ -104,22 +104,32 @@ describe("loginSchema", () => {
 });
 
 describe("verifyEmailSchema", () => {
-  const token = "a".repeat(64); // raw tokens are 32 random bytes → 64 hex chars
+  const valid = { email: "ada@example.com", code: "123456" };
 
-  it("accepts a well-formed token", () => {
-    expect(verifyEmailSchema.safeParse({ token }).success).toBe(true);
+  it("accepts a well-formed email + 6-digit code", () => {
+    expect(verifyEmailSchema.safeParse(valid).success).toBe(true);
   });
 
-  it("rejects a missing token", () => {
+  it("accepts leading zeros and trims padding", () => {
+    expect(verifyEmailSchema.safeParse({ ...valid, code: "000000" }).success).toBe(true);
+    expect(verifyEmailSchema.safeParse({ ...valid, code: " 123456 " }).success).toBe(true);
+  });
+
+  it("rejects a missing field", () => {
     expect(verifyEmailSchema.safeParse({}).success).toBe(false);
+    expect(verifyEmailSchema.safeParse({ email: valid.email }).success).toBe(false);
+    expect(verifyEmailSchema.safeParse({ code: valid.code }).success).toBe(false);
   });
 
-  it("rejects a truncated token (link tampering)", () => {
-    expect(verifyEmailSchema.safeParse({ token: "abc123" }).success).toBe(false);
+  it("rejects a non-numeric or wrong-length code", () => {
+    expect(verifyEmailSchema.safeParse({ ...valid, code: "abcdef" }).success).toBe(false);
+    expect(verifyEmailSchema.safeParse({ ...valid, code: "12345" }).success).toBe(false);
+    expect(verifyEmailSchema.safeParse({ ...valid, code: "1234567" }).success).toBe(false);
+    expect(verifyEmailSchema.safeParse({ ...valid, code: "" }).success).toBe(false);
   });
 
-  it("rejects an empty token", () => {
-    expect(verifyEmailSchema.safeParse({ token: "" }).success).toBe(false);
+  it("rejects an invalid email", () => {
+    expect(verifyEmailSchema.safeParse({ ...valid, email: "nope" }).success).toBe(false);
   });
 });
 

@@ -13,4 +13,8 @@ const options = (max: number, windowMs: number) => ({
 
 export const globalLimiter = rateLimit(options(300, 15 * 60 * 1000));
 export const authLimiter = rateLimit(options(30, 15 * 60 * 1000));
+// Email-code verification: its own budget (the 5-guess code wipe does the
+// heavy lifting; this just stops one IP from hammering the endpoint), kept
+// off the shared auth pool so verifying never blocks someone's sign-ins.
+export const verifyLimiter = rateLimit(options(60, 15 * 60 * 1000));
 export const uploadLimiter = rateLimit(options(20, 60 * 60 * 1000));

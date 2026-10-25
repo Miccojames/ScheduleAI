@@ -59,15 +59,19 @@ model PasswordResetToken {
   @@index([userId])
 }
 
-// Single-use, hashed email-verification tokens — same shape as the reset
-// tokens, longer TTL (the user has to open their inbox). One live token per
-// account: re-sending deletes any pending rows first.
+// Single-use, hashed email-verification codes — the row stores the SHA-256 of
+// "userId:<6-digit code>" (never the plaintext). Short TTL (10 min) because a
+// code is time-sensitive, and `attempts` caps wrong guesses: 6 digits is only
+// ~1e6 combinations, so the 5-try wipe plus rate limiting is what makes
+// guessing infeasible. One live code per account: a resend deletes any
+// pending rows first.
 model EmailVerificationToken {
   id        String   @id @default(cuid())
   userId    String
   tokenHash String   @unique
   expiresAt DateTime
   usedAt    DateTime?
+  attempts  Int      @default(0)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

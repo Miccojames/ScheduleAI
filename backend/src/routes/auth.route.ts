@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as authController from "../controllers/auth.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
-import { authLimiter } from "../middleware/rateLimit.middleware.js";
+import { authLimiter, verifyLimiter } from "../middleware/rateLimit.middleware.js";
 import { registerSchema, loginSchema, updateMeSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema, verifyEmailSchema, resendVerificationSchema } from "../validators/auth.js";
 
 const router = Router();
@@ -19,11 +19,12 @@ router.post("/forgot-password", authLimiter, validate(forgotPasswordSchema), aut
 router.post("/reset-password", authLimiter, validate(resetPasswordSchema), authController.resetPassword);
 router.put("/password", requireAuth, authLimiter, validate(changePasswordSchema), authController.changePassword);
 
-// Email verification (anonymous, token-based). resend-verification sends
-// mail, so it sits behind authLimiter; verify-email only consumes a 256-bit
-// one-time token (globalLimiter still applies) — leaving it off the auth
-// budget keeps the smoke suite and legitimate link clicks from tripping 429.
-router.post("/verify-email", validate(verifyEmailSchema), authController.verifyEmail);
+// Email verification (anonymous, code-based). The code is only 6 digits, so
+// verify-email sits behind its own per-IP budget: the 5-guess-per-code wipe
+// is the real guard, this is the backstop. Kept separate from authLimiter so
+// verification never starves sign-in attempts (and repeated smoke runs don't
+// share one 30-request pool).
+router.post("/verify-email", verifyLimiter, validate(verifyEmailSchema), authController.verifyEmail);
 router.post("/resend-verification", authLimiter, validate(resendVerificationSchema), authController.resendVerification);
 
 export default router;

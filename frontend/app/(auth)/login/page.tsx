@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AlertCircle, Loader2, MailCheck } from "lucide-react";
@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin, useMe, useResendVerification } from "@/hooks/useAuth";
-import { ApiError, apiErrorMessage } from "@/services/api";
+import { useLogin, useMe } from "@/hooks/useAuth";
+import { VerifyCodeForm } from "@/components/auth/verify-code-form";
+import { ApiError } from "@/services/api";
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email address."),
@@ -24,25 +25,25 @@ type LoginValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const login = useLogin();
-  const resend = useResendVerification();
   const { data: user, isCheckingSession: checkingSession } = useMe();
   const [formError, setFormError] = useState<string | null>(null);
   // 403 from /login means "right password, unverified address" — a distinct
-  // state that gets its own banner + resend button instead of a red error.
+  // state that gets its own banner with an inline code box instead of a red
+  // error.
   const [unverified, setUnverified] = useState(false);
-  const [resendSent, setResendSent] = useState(false);
-  const [resendError, setResendError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     setValue,
-    getValues,
+    control,
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
+  // The banner verifies this address — subscribe so editing the field keeps it in sync.
+  const watchedEmail = useWatch({ control, name: "email" });
 
   // Just registered (or verified)? The email is handed over pre-filled.
   useEffect(() => {
@@ -64,8 +65,6 @@ export default function LoginPage() {
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
     setUnverified(false);
-    setResendError(null);
-    setResendSent(false);
     try {
       await login.mutateAsync(values);
     } catch (error) {
@@ -80,20 +79,6 @@ export default function LoginPage() {
       );
     }
   });
-
-  const onResend = async () => {
-    setResendError(null);
-    try {
-      await resend.mutateAsync({ email: getValues("email") });
-      setResendSent(true);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 429) {
-        setResendError("Too many attempts. Wait a few minutes, then try again.");
-        return;
-      }
-      setResendError(apiErrorMessage(error, "We couldn't send the email. Try again."));
-    }
-  };
 
   return (
     <Card className="rounded-2xl border-border shadow-sm">
@@ -113,34 +98,16 @@ export default function LoginPage() {
                 <div>
                   <p className="font-medium">Your email hasn&apos;t been verified yet.</p>
                   <p className="mt-0.5 text-xs">
-                    Open the link we sent when you signed up — or have a fresh one sent here.
+                    Enter the 6-digit code from your inbox below — we&apos;ll finish signing you in
+                    the moment it checks out. No code? Resend it from the same box.
                   </p>
                 </div>
               </div>
-              {resendError ? (
-                <p className="text-xs text-destructive" role="alert">
-                  {resendError}
-                </p>
-              ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="w-full"
-                onClick={onResend}
-                disabled={resend.isPending}
-              >
-                {resend.isPending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                    Sending…
-                  </>
-                ) : resendSent ? (
-                  "Email sent again ✓"
-                ) : (
-                  "Resend verification email"
-                )}
-              </Button>
+              {/* Password's already in the form: a valid code re-submits sign-in. */}
+              <VerifyCodeForm
+                email={watchedEmail}
+                onVerified={() => void onSubmit()}
+              />
             </div>
           ) : formError ? (
             <div

@@ -33,7 +33,9 @@ export interface ChangePasswordInput {
 }
 
 export interface VerifyEmailInput {
-  token: string;
+  email: string;
+  /** The 6-digit code we emailed. */
+  code: string;
 }
 
 export interface ResendVerificationInput {
@@ -42,10 +44,10 @@ export interface ResendVerificationInput {
 
 export const authApi = {
   register(input: RegisterInput) {
-    // `verificationUrl` comes back only from a dev backend with no SMTP — it
-    // mirrors the link printed to the server console so local flows are
-    // clickable. Production never sends it (the link arrives by email).
-    return api<{ user: User; verificationUrl?: string }>("/api/auth/register", {
+    // `verificationCode` comes back only from a non-production backend — the
+    // same 6-digit code that was just emailed, so local flows (and dev
+    // shortcuts) can complete without a mailbox. Production never sends it.
+    return api<{ user: User; verificationCode?: string }>("/api/auth/register", {
       method: "POST",
       body: input,
       skipAuthRedirect: true,
@@ -107,7 +109,7 @@ export const authApi = {
     });
   },
 
-  /** Consume the token from the mailed link. 400 = expired/invalid/used. */
+  /** Submit the emailed 6-digit code. 400 = wrong/expired/too many attempts. */
   verifyEmail(input: VerifyEmailInput) {
     return api<{ user: User }>("/api/auth/verify-email", {
       method: "POST",
@@ -119,9 +121,10 @@ export const authApi = {
   /**
    * Always resolves (when the address is valid) — the backend never reveals
    * whether the account exists or is already verified (no enumeration).
+   * Non-production backends also return the freshly minted `verificationCode`.
    */
   resendVerification(input: ResendVerificationInput) {
-    return api<null>("/api/auth/resend-verification", {
+    return api<{ verificationCode?: string } | null>("/api/auth/resend-verification", {
       method: "POST",
       body: input,
       skipAuthRedirect: true,

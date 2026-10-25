@@ -7,12 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { AlertCircle, Loader2, MailCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRegister, useResendVerification } from "@/hooks/useAuth";
-import { ApiError, apiErrorMessage } from "@/services/api";
+import { VerifyCodeForm } from "@/components/auth/verify-code-form";
+import { useRegister } from "@/hooks/useAuth";
+import { ApiError } from "@/services/api";
 
 const registerSchema = z.object({
   firstName: z.string().trim().min(1, "Enter your first name."),
@@ -26,16 +28,13 @@ type RegisterValues = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const router = useRouter();
   const registerUser = useRegister();
-  const resend = useResendVerification();
   const [formError, setFormError] = useState<string | null>(null);
 
-  // "Check your email" state — the account exists but isn't usable until the
-  // mailed link is clicked.
+  // "Enter your code" state — the account exists but isn't usable until the
+  // 6-digit code from the email is typed in.
   const [sent, setSent] = useState(false);
   const [sentEmail, setSentEmail] = useState("");
-  const [verificationUrl, setVerificationUrl] = useState<string | null>(null);
-  const [resendError, setResendError] = useState<string | null>(null);
-  const [resendSent, setResendSent] = useState(false);
+  const [devCode, setDevCode] = useState<string | null>(null);
 
   const {
     register,
@@ -47,18 +46,16 @@ export default function RegisterPage() {
     defaultValues: { firstName: "", lastName: "", email: "", password: "" },
   });
 
-  // Registration never signs you in: the account is created, the verification
-  // mail goes out, and this screen waits for the link to be clicked.
+  // Registration never signs you in: the account is created, the code goes
+  // out by email, and this screen waits for it to be typed back in.
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
     try {
       const data = await registerUser.mutateAsync(values);
       setSentEmail(values.email);
-      // Only a dev backend with no SMTP returns this (see auth.api.ts).
-      setVerificationUrl(data.verificationUrl ?? null);
-      setResendError(null);
-      setResendSent(false);
+      // Only a non-production backend returns this (see auth.api.ts).
+      setDevCode(data.verificationCode ?? null);
       setSent(true);
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -71,27 +68,15 @@ export default function RegisterPage() {
     }
   });
 
-  const goToLogin = () => {
+  // Code accepted → hand off to the login screen with the email pre-filled.
+  const onVerified = () => {
     try {
       window.sessionStorage.setItem("scheduleai:registeredEmail", sentEmail);
     } catch {
       // Storage unavailable (private mode) — the field just stays empty.
     }
+    toast.success("Email verified — sign in to continue.");
     router.push("/login");
-  };
-
-  const onResend = async () => {
-    setResendError(null);
-    try {
-      await resend.mutateAsync({ email: sentEmail });
-      setResendSent(true);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 429) {
-        setResendError("Too many attempts. Wait a few minutes, then try again.");
-        return;
-      }
-      setResendError(apiErrorMessage(error, "We couldn't send the email. Try again."));
-    }
   };
 
   const backToForm = () => {
@@ -104,11 +89,11 @@ export default function RegisterPage() {
     return (
       <Card className="rounded-2xl border-border shadow-sm">
         <CardHeader className="space-y-1.5">
-          <CardTitle className="text-xl font-semibold tracking-tight">Check your email</CardTitle>
+          <CardTitle className="text-xl font-semibold tracking-tight">Enter your code</CardTitle>
           <CardDescription>
-            We sent a verification link to{" "}
-            <span className="font-medium text-foreground">{sentEmail}</span>. Click it to activate
-            your account.
+            We sent a 6-digit code to{" "}
+            <span className="font-medium text-foreground">{sentEmail}</span>. Enter it below to
+            activate your account.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -118,55 +103,17 @@ export default function RegisterPage() {
           >
             <MailCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
             <span>
-              The link works once and expires in <strong>24 hours</strong>. Check your spam folder
-              if it hasn&apos;t arrived in a minute.
+              The code expires in <strong>10 minutes</strong>. Check your spam folder if it
+              hasn&apos;t arrived in a minute.
             </span>
           </div>
 
-          {verificationUrl ? (
-            <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-300">
-              <p className="font-medium">Running locally — email isn&apos;t connected in dev mode.</p>
-              <p className="text-xs">
-                The link was also printed to the server console. Open it here:
-              </p>
-              <Button asChild variant="outline" size="sm" className="w-full">
-                <a href={verificationUrl}>Open the verification link</a>
-              </Button>
-            </div>
-          ) : null}
-
-          {resendError ? (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
-            >
-              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-              <span>{resendError}</span>
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full"
-            onClick={onResend}
-            disabled={resend.isPending}
-          >
-            {resend.isPending ? (
-              <>
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                Sending…
-              </>
-            ) : resendSent ? (
-              "Email sent again ✓"
-            ) : (
-              "Resend email"
-            )}
-          </Button>
-
-          <Button type="button" className="w-full" onClick={goToLogin}>
-            I&apos;ve verified — sign in
-          </Button>
+          <VerifyCodeForm
+            email={sentEmail}
+            devCode={devCode}
+            autoFocus
+            onVerified={onVerified}
+          />
 
           <p className="text-center text-sm text-muted-foreground">
             <button

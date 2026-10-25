@@ -78,26 +78,16 @@ export function useRegister() {
 }
 
 /**
- * Consumes the token from the mailed verification link. The page renders its
- * own success/error states, so this hook only redirects on success (to the
- * login screen, with the address pre-filled).
+ * Submits the 6-digit code from the email. Deliberately side-effect free
+ * (beyond refreshing the session probe): each screen decides what happens on
+ * success — register redirects to sign-in, the login banner auto-signs-in.
  */
 export function useVerifyEmail() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
-    mutationFn: (token: string) => authApi.verifyEmail({ token }),
-    onSuccess: async (data) => {
-      try {
-        window.sessionStorage.setItem("scheduleai:registeredEmail", data.user.email);
-      } catch {
-        // Storage unavailable — the login form just starts empty.
-      }
-      await queryClient.invalidateQueries({ queryKey: authKeys.me });
-      toast.success("Email verified — sign in to continue.");
-      router.push("/login");
-    },
+    mutationFn: (input: { email: string; code: string }) => authApi.verifyEmail(input),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: authKeys.me }),
   });
 }
 
