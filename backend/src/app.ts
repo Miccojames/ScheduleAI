@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth.route.js";
 import scheduleRoutes from "./routes/schedule.route.js";
 import uploadRoutes from "./routes/upload.route.js";
 import notificationRoutes from "./routes/notification.route.js";
+import assistantRoutes from "./routes/assistant.route.js";
 
 export function createApp(): express.Express {
   const app = express();
@@ -59,6 +60,7 @@ export function createApp(): express.Express {
   app.use("/api/schedules", scheduleRoutes);
   app.use("/api/schedule-upload", uploadRoutes);
   app.use("/api/notifications", notificationRoutes);
+  app.use("/api/assistant", assistantRoutes);
 
   // 404 + central error handler last.
   app.use(notFoundHandler);

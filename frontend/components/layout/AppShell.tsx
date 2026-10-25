@@ -3,6 +3,7 @@ import { ActiveScheduleSync } from "@/components/layout/ActiveScheduleSync";
 import { Header } from "@/components/layout/Header";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { AssistantDock } from "@/components/assistant/AssistantDock";
 
 /** Desktop sidebar + mobile header/bottom nav around the page content. */
 export function AppShell({ children }: { children: ReactNode }) {
@@ -17,6 +18,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </main>
       </div>
       <MobileNav />
+      {/* Floating AI assistant — only ever rendered inside the authed shell. */}
+      <AssistantDock />
     </div>
   );
 }

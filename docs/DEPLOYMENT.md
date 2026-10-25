@@ -213,6 +213,13 @@ scanned **photos** are temporary. For a long-lived install, add Cloudinary
 (Phase 1) means a slow scan never breaks the UI; it may still fall back to
 clearly-labelled demo data when Gemini is unavailable.
 
+The **AI assistant** shares the same key but uses its own model
+(`GEMINI_CHAT_MODEL`, default `gemini-3.1-flash-lite` — ~1.5s/call; the
+scanner's `gemini-3.8-flash` takes 33s+ and often times out on chat turns).
+Each message is capped at 3 model calls, and chat has its own rate limit
+(20/15 min per IP). When the free tier is exhausted, the assistant answers
+with a friendly "try again in ~15 minutes" message instead of failing hard.
+
 ### 🗄️ Neon free tier
 Your database pauses after 5 minutes of inactivity on the free plan and resumes
 on the next query (a few seconds' delay the first time). Fine for a class

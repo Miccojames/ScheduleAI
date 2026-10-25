@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ENTRY_KINDS, KIND_META } from "@/lib/kind";
+import { ENTRY_KINDS, KIND_FIELDS, KIND_META } from "@/lib/kind";
 import { DAY_ORDER, dayLabel, dayOfWeekForDate, parseIsoDate, toMinutes, todayDayOfWeek } from "@/lib/time";
 import { DAYS_OF_WEEK } from "@/types";
 import type { DayOfWeek, EntryPayload, Schedule } from "@/types";
@@ -26,7 +26,9 @@ const classSchema = z
     scheduleId: z.string().min(1, "Choose a schedule."),
     /** What kind of event this is — class, work, personal or other. */
     kind: z.enum(ENTRY_KINDS),
-    subject: z.string().trim().min(1, "Enter a subject."),
+    // Required, but the message depends on the kind ("subject" vs "title") —
+    // checked in the superRefine below where values.kind is available.
+    subject: z.string().trim(),
     day: z.enum(DAYS_OF_WEEK),
     /** "YYYY-MM-DD" — required when isOneOff is true. */
     date: z.string(),
@@ -51,6 +53,15 @@ const classSchema = z
   .refine((values) => !values.isOneOff || /^\d{4}-\d{2}-\d{2}$/.test(values.date), {
     message: "Pick the date for this one-time event.",
     path: ["date"],
+  })
+  .superRefine((values, ctx) => {
+    if (!values.subject) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["subject"],
+        message: `Enter a ${KIND_FIELDS[values.kind].subjectLabel.toLowerCase()}.`,
+      });
+    }
   });
 
 export type ClassFormValues = z.infer<typeof classSchema>;
@@ -64,13 +75,16 @@ export type ClassFormDefaults = Partial<ClassFormValues>;
  */
 export function classFormToPayload(values: ClassFormValues): EntryPayload {
   const isOneOff = Boolean(values.isOneOff);
+  const fields = KIND_FIELDS[values.kind];
   return {
     subject: values.subject,
     day: isOneOff ? dayOfWeekForDate(parseIsoDate(values.date)) : values.day,
     startTime: values.startTime,
     endTime: values.endTime,
-    instructor: values.instructor || undefined,
-    room: values.room || undefined,
+    // Hidden fields are dropped so a Personal/Other entry never carries a
+    // stale room/instructor picked earlier while the kind was different.
+    instructor: fields.showInstructor ? values.instructor || undefined : undefined,
+    room: fields.showRoom ? values.room || undefined : undefined,
     notes: values.notes || undefined,
     isOneOff,
     kind: values.kind,
@@ -88,6 +102,12 @@ interface ClassFormProps {
   isPending?: boolean;
   /** Hidden in edit mode — the class can't move between schedules. */
   lockSchedule?: boolean;
+  /**
+   * When rendered inside a p-6 scrollable dialog, pin the action row to the
+   * bottom of the scroll area so Cancel/Submit are always visible on phones.
+   * (The -mx-6 bleed matches that p-6 wrapper — adjust if that changes.)
+   */
+  stickyActions?: boolean;
   onSubmit: (values: ClassFormValues) => void | Promise<void>;
   onCancel?: () => void;
 }
@@ -114,6 +134,7 @@ export function ClassForm({
   submitLabel = "Save Changes",
   isPending = false,
   lockSchedule = false,
+  stickyActions = false,
   onSubmit,
   onCancel,
 }: ClassFormProps) {
@@ -130,11 +151,13 @@ export function ClassForm({
 
   const isOneOff = useWatch({ control, name: "isOneOff", defaultValue: false });
   const kind = useWatch({ control, name: "kind", defaultValue: "class" });
+  // Per-kind field matrix — labels, placeholders and which optional fields render.
+  const kindFields = KIND_FIELDS[kind];
 
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4"
+      className="flex flex-col gap-4"
       noValidate
       id="class-form"
     >
@@ -230,10 +253,10 @@ export function ClassForm({
       ) : null}
 
       <div className="space-y-1.5">
-        <Label htmlFor="subject">Subject</Label>
+        <Label htmlFor="subject">{kindFields.subjectLabel}</Label>
         <Input
           id="subject"
-          placeholder="Database Systems"
+          placeholder={kindFields.subjectPlaceholder}
           aria-invalid={Boolean(errors.subject)}
           {...register("subject")}
         />
@@ -327,16 +350,35 @@ export function ClassForm({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="room">{kind === "class" ? "Room" : "Location"}</Label>
-          <Input id="room" placeholder="Room 402" {...register("room")} />
+      {kindFields.showRoom || kindFields.showInstructor ? (
+        <div
+          className={cn(
+            "grid gap-4",
+            kindFields.showRoom && kindFields.showInstructor && "sm:grid-cols-2",
+          )}
+        >
+          {kindFields.showRoom ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="room">{kindFields.roomLabel}</Label>
+              <Input
+                id="room"
+                placeholder={kindFields.roomPlaceholder}
+                {...register("room")}
+              />
+            </div>
+          ) : null}
+          {kindFields.showInstructor ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="instructor">{kindFields.instructorLabel}</Label>
+              <Input
+                id="instructor"
+                placeholder={kindFields.instructorPlaceholder}
+                {...register("instructor")}
+              />
+            </div>
+          ) : null}
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="instructor">{kind === "class" ? "Instructor" : "Host"}</Label>
-          <Input id="instructor" placeholder="Prof. Santos" {...register("instructor")} />
-        </div>
-      </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <Label htmlFor="notes">Notes</Label>
@@ -349,7 +391,16 @@ export function ClassForm({
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-1">
+      <div
+        className={cn(
+          "flex justify-end gap-2",
+          stickyActions
+            ? // Pinned inside the dialog's scroll area: full-bleed to the
+              // p-6 wrapper edges, opaque so entries slide underneath.
+              "sticky bottom-0 z-10 -mx-6 -mt-4 border-t bg-popover px-6 py-4"
+            : "pt-1",
+        )}
+      >
         {onCancel ? (
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel

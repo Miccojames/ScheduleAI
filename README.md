@@ -5,6 +5,7 @@ Upload a photo of your class schedule → AI extracts the classes → you review
 ## Features
 
 - 📸 **AI schedule scanner** — drag-and-drop / camera upload (JPG, PNG, WebP), processed by Google Gemini vision (free tier) with a built-in demo provider when no key is set
+- 🤖 **AI schedule assistant** — floating chat bubble on every signed-in page; asks about your week **or creates/edits/deletes events by natural language** (Gemini function calling), full chat history, demo mode when no key is set
 - ✍️ **Review before save** — every detected field is editable; the AI never writes to the database directly
 - ⚠️ **Conflict detection** — overlapping classes are highlighted, never auto-deleted
 - 📅 **Weekly calendar** — desktop grid with overlap-aware blocks; mobile day-view with day selector
@@ -79,7 +80,8 @@ Open http://localhost:3000, register, and try the **Upload Schedule** flow — w
 | `JWT_SECRET` | Token signing secret — use a long random string in production |
 | `FRONTEND_URL` | Exact frontend origin for CORS + CSRF origin check (e.g. `https://your-app.vercel.app`) |
 | `GEMINI_API_KEY` | Optional — leave empty to use the demo provider |
-| `GEMINI_MODEL` | Optional, defaults to `gemini-3.8-flash` |
+| `GEMINI_MODEL` | Optional, defaults to `gemini-3.8-flash` (schedule scanner) |
+| `GEMINI_CHAT_MODEL` | Optional, defaults to `gemini-3.1-flash-lite` (assistant chat — ~1.5s/call vs 33s+ on 3.8-flash) |
 | `UPLOAD_DIR` | Where uploaded images are stored (default `./uploads`) |
 
 **Frontend** (`frontend/.env.local`):
@@ -100,8 +102,11 @@ All responses use the envelope `{ success, data, message? }` / `{ success, messa
 | Schedules | `GET/POST /api/schedules` · `GET/PUT/DELETE /api/schedules/:id` |
 | Entries | `GET/POST /api/schedules/:id/entries` · `PUT/DELETE .../entries/:entryId` · `POST .../entries/bulk` |
 | Upload | `POST /api/schedule-upload` · `GET .../:id/image` · `POST .../:id/process` |
+| Assistant | `POST /api/assistant/chat` · `GET/DELETE /api/assistant/messages` |
 
 AI flow: upload image → `process` returns **detected entries only** → user reviews/edits on the review screen → confirmed entries are validated and saved via the bulk endpoint. Authorization is enforced on every query (other users' resources return `404`).
+
+Assistant flow: one `chat` message runs a **bounded tool loop** (max 3 model calls) over `list_schedules` / `list_events` / `create_schedule` / `create_event` / `update_event` / `delete_event` — every tool executes against the **session** user, so the model can never touch another account. Both messages of a turn are persisted to `ChatMessage` history; `changedSchedule: true` in the reply tells the frontend to refresh the calendar. Rate-limited separately (`assistantLimiter`, 20/15 min) so a chatty assistant can never starve sign-in.
 
 ## Verification
 

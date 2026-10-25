@@ -66,24 +66,30 @@ export function AddClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-6 sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">Add Event</DialogTitle>
-          <DialogDescription>
-            Add a single event to your schedule. You can repeat it on other days later.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-lg">
+        {/* Full-height scroll area: header + form scroll inside while the ✕
+            (rendered by DialogContent) and the sticky action row stay put.
+            -m-4 bleeds past the dialog padding so the footer can go edge-to-edge. */}
+        <div className="-m-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Add Event</DialogTitle>
+            <DialogDescription>
+              Add a single event to your schedule. You can repeat it on other days later.
+            </DialogDescription>
+          </DialogHeader>
 
-        <ConflictWarning conflicts={conflicts} className="mt-1" />
+          <ConflictWarning conflicts={conflicts} className="mt-1" />
 
-        <ClassForm
-          schedules={schedules}
-          defaultValues={defaults}
-          submitLabel="Add Event"
-          isPending={createEntry.isPending}
-          onSubmit={handleSubmit}
-          onCancel={() => onOpenChange(false)}
-        />
+          <ClassForm
+            schedules={schedules}
+            defaultValues={defaults}
+            submitLabel="Add Event"
+            isPending={createEntry.isPending}
+            onSubmit={handleSubmit}
+            onCancel={() => onOpenChange(false)}
+            stickyActions
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

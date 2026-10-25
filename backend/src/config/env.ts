@@ -39,6 +39,16 @@ const envSchema = z
       .optional()
       .default("")
       .transform((v) => (v.trim().length > 0 ? v.trim() : "gemini-3.8-flash")),
+    // Optional: Gemini model for the ASSISTANT chat (separate from the
+    // scanner so each can be tuned independently). Blank → gemini-3.1-flash-lite:
+    // measured ~1.5s/call for the function-calling loop vs 33s+ (and 504
+    // timeouts) on gemini-3.8-flash — chat must feel instant, and every
+    // message costs 1-3 model calls.
+    GEMINI_CHAT_MODEL: z
+      .string()
+      .optional()
+      .default("")
+      .transform((v) => (v.trim().length > 0 ? v.trim() : "gemini-3.1-flash-lite")),
     UPLOAD_DIR: z.string().min(1).default("./uploads"),
 
     // Optional: "true"/"false" — when unset, mock fallback is allowed in
@@ -68,6 +78,13 @@ const envSchema = z
         code: "custom",
         path: ["GEMINI_MODEL"],
         message: `GEMINI_MODEL must look like "gemini-2.0-flash" (got "${env.GEMINI_MODEL}") — remove any duplicated "GEMINI_MODEL=" prefix or trailing spaces.`,
+      });
+    }
+    if (!/^gemini-[a-z0-9.-]+$/i.test(env.GEMINI_CHAT_MODEL)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["GEMINI_CHAT_MODEL"],
+        message: `GEMINI_CHAT_MODEL must look like "gemini-3.1-flash-lite" (got "${env.GEMINI_CHAT_MODEL}") — remove any duplicated "GEMINI_CHAT_MODEL=" prefix or trailing spaces.`,
       });
     }
     // In production, JWT_SECRET must not be the example value.

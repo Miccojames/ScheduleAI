@@ -54,6 +54,69 @@ export const KIND_META: Record<EntryKind, KindMeta> = {
   },
 };
 
+/** Which extra form fields each event kind exposes. */
+export interface KindFieldMeta {
+  /** Label for the main identity field — "Subject" for classes, "Title" otherwise. */
+  subjectLabel: string;
+  subjectPlaceholder: string;
+  /** Show the place field (room for classes, location for work/other). */
+  showRoom: boolean;
+  roomLabel: string;
+  roomPlaceholder: string;
+  /** Show the person field — classes only. */
+  showInstructor: boolean;
+  instructorLabel: string;
+  instructorPlaceholder: string;
+}
+
+/**
+ * Per-kind field matrix for the add/edit form. Switching kind keeps whatever
+ * the user already typed, but hidden fields are dropped from the save payload
+ * (see classFormToPayload) so e.g. a Personal entry never carries a stale room.
+ */
+export const KIND_FIELDS: Record<EntryKind, KindFieldMeta> = {
+  class: {
+    subjectLabel: "Subject",
+    subjectPlaceholder: "Database Systems",
+    showRoom: true,
+    roomLabel: "Room",
+    roomPlaceholder: "Room 402",
+    showInstructor: true,
+    instructorLabel: "Instructor",
+    instructorPlaceholder: "Prof. Santos",
+  },
+  work: {
+    subjectLabel: "Title",
+    subjectPlaceholder: "Team meeting",
+    showRoom: true,
+    roomLabel: "Location",
+    roomPlaceholder: "Office 3B / Zoom link",
+    showInstructor: false,
+    instructorLabel: "Host",
+    instructorPlaceholder: "",
+  },
+  personal: {
+    subjectLabel: "Title",
+    subjectPlaceholder: "Gym session",
+    showRoom: false,
+    roomLabel: "Location",
+    roomPlaceholder: "",
+    showInstructor: false,
+    instructorLabel: "Host",
+    instructorPlaceholder: "",
+  },
+  other: {
+    subjectLabel: "Title",
+    subjectPlaceholder: "Birthday dinner",
+    showRoom: true,
+    roomLabel: "Location",
+    roomPlaceholder: "Somewhere nice",
+    showInstructor: false,
+    instructorLabel: "Host",
+    instructorPlaceholder: "",
+  },
+};
+
 /**
  * Resolve an entry's kind defensively — the field is optional in responses
  * and older data (or a stray server value) must never break rendering.

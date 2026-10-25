@@ -16,7 +16,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EditClassDialog } from "@/components/schedule/EditClassDialog";
 import { useDeleteEntry } from "@/hooks/useDeleteEntry";
 import { useUpdateEntry } from "@/hooks/useUpdateEntry";
-import { KIND_META, kindOf } from "@/lib/kind";
+import { KIND_FIELDS, KIND_META, kindOf } from "@/lib/kind";
 import { googleCalendarUrl } from "@/lib/googleCalendar";
 import { dayLabel, formatIsoDateLabel, formatTimeRange } from "@/lib/time";
 import type { Entry, EntryPayload } from "@/types";
@@ -68,6 +68,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
 
   const kind = kindOf(entry);
   const kindMeta = KIND_META[kind];
+  const kindFields = KIND_FIELDS[kind];
 
   const exceptions =
     exceptionsOverride && exceptionsOverride.entryId === entry.id
@@ -147,7 +148,9 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
           if (!next) setEditing(false);
         }}
       >
-        <DialogContent className="p-6 sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
+          {/* Scroll area keeps the ✕ pinned while the detail rows scroll. */}
+          <div className="-m-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-6">
           <DialogHeader>
             <span
               className="mb-1.5 inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium"
@@ -180,16 +183,20 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
               label="Time"
               value={formatTimeRange(entry.startTime, entry.endTime)}
             />
-            <DetailRow
-              icon={MapPin}
-              label={kind === "class" ? "Room" : "Location"}
-              value={entry.room?.trim() ? entry.room : "No room set"}
-            />
-            <DetailRow
-              icon={User}
-              label={kind === "class" ? "Instructor" : "Host"}
-              value={entry.instructor?.trim() ? entry.instructor : "No instructor set"}
-            />
+            {kindFields.showRoom ? (
+              <DetailRow
+                icon={MapPin}
+                label={kindFields.roomLabel}
+                value={entry.room?.trim() ? entry.room : "No room set"}
+              />
+            ) : null}
+            {kindFields.showInstructor ? (
+              <DetailRow
+                icon={User}
+                label={kindFields.instructorLabel}
+                value={entry.instructor?.trim() ? entry.instructor : "No instructor set"}
+              />
+            ) : null}
             <Separator />
             {entry.isOneOff ? (
               <DetailRow
@@ -299,6 +306,7 @@ export function ClassDetailsDialog({ entry, open, onOpenChange }: ClassDetailsDi
                 Edit
               </Button>
             </div>
+          </div>
           </div>
         </DialogContent>
       </Dialog>

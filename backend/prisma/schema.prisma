@@ -43,6 +43,23 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   pushSubscriptions       PushSubscription[]
   notificationLogs        NotificationLog[]
+  chatMessages            ChatMessage[]
+}
+
+// Assistant chat history — one row per message (user or assistant), newest
+// last. Cleared wholesale by the "Clear chat" action; cascade-deleted with
+// the account.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  /// "user" | "assistant"
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // Single-use, hashed password-reset tokens (SHA-256 of the raw token).

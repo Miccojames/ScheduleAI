@@ -18,3 +18,8 @@ export const authLimiter = rateLimit(options(30, 15 * 60 * 1000));
 // off the shared auth pool so verifying never blocks someone's sign-ins.
 export const verifyLimiter = rateLimit(options(60, 15 * 60 * 1000));
 export const uploadLimiter = rateLimit(options(20, 60 * 60 * 1000));
+// Assistant chat: its own small per-IP budget. Each message can burn several
+// upstream Gemini calls (bounded tool loop), and the free tier only allows
+// ~20 generateContent requests per 15 minutes — this keeps one user from
+// eating the whole quota, and stays off every other limiter pool.
+export const assistantLimiter = rateLimit(options(20, 15 * 60 * 1000));
