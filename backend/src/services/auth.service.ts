@@ -101,7 +101,10 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     let verificationCode: string | undefined;
     try {
       const code = await issueVerificationCode(user.id);
-      await sendVerificationEmail(user.email, user.firstName, code);
+      // Fire-and-forget — never await mail inside the request path: a slow or
+      // unreachable SMTP server must not delay the register response (senders
+      // never throw; failures are logged inside email.service).
+      void sendVerificationEmail(user.email, user.firstName, code);
       verificationCode = !isProduction ? code : undefined;
     } catch (err) {
       console.error(`[auth] Could not issue verification code for ${email}:`, err);
@@ -225,7 +228,10 @@ export async function resendVerification(email: string): Promise<string | undefi
   if (!user || user.emailVerifiedAt) return undefined; // silent no-op
 
   const code = await issueVerificationCode(user.id);
-  await sendVerificationEmail(user.email, user.firstName, code);
+  // Fire-and-forget (same as register): the response must never wait on the
+  // mail server — worst case the background attempt fails after the bounded
+  // transport timeouts and gets logged.
+  void sendVerificationEmail(user.email, user.firstName, code);
   return !isProduction ? code : undefined;
 }
 
@@ -268,9 +274,10 @@ export async function requestPasswordReset(email: string): Promise<void> {
     },
   });
 
-  // Fire-and-forget style: sendPasswordResetEmail never throws, but we still
-  // await so the dev-mode console output lands before the response.
-  await sendPasswordResetEmail(user.email, rawToken);
+  // Fire-and-forget: sendPasswordResetEmail never throws (failures are logged
+  // inside email.service), and the dev-mode console print runs synchronously
+  // during the call — so nothing needs to be awaited before responding.
+  void sendPasswordResetEmail(user.email, rawToken);
 }
 
 /**

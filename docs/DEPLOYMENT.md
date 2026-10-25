@@ -122,41 +122,67 @@ The backend only accepts browser requests from the exact frontend origin
 
 ---
 
-## Step 4b — Email sending with Gmail SMTP / Resend (5 min) ⚠️ needed before real sign-ups
+## Step 4b — Email sending (5 min) ⚠️ needed before real sign-ups
 
 New accounts can't sign in until they enter the 6-digit verification code we
 email them — so with no SMTP configured, sign-ups are created but stuck at
 "verify your email". (Password-reset emails use the same settings.)
 
-1. Create a free account at <https://resend.com> → **API Keys** → create one
-   (it looks like `re_xxxxxxxx`).
-2. **To email real users you must verify a domain you own**: *Domains → Add
-   Domain* → paste the 3 DNS records (DKIM/SPF/DMARC) at your registrar.
-   - **No domain yet?** Two workable options:
-     - **Prove the flow:** leave it unverified — Resend then only delivers to
-       *your own* Resend-account address. Enough to test end to end.
-     - **Ship anyway:** use **Gmail SMTP** instead (right-hand column below) —
-       works for every recipient with just a Google account + an *App
-       password* (Google Account → Security → 2-Step Verification → App
-       passwords). No domain needed.
-3. Render → your service → **Environment** → add → **Save Changes**
+> ⛔ **Render free tier blocks outbound SMTP ports 25, 465 and 587**
+> (announced 2025-09-16, live since 2025-09-26). **Gmail SMTP and Resend's
+> port 465 can never connect from a free Render service** — nodemailer just
+> times out (`ETIMEDOUT` on `CONN`) and the email never arrives. This is a
+> host restriction, not a misconfiguration. Use **port 2525** (not on the
+> blocklist), or upgrade Render to a paid instance to unblock 465/587.
+
+### Option A — Brevo SMTP on port 2525 (free, recommended)
+
+Works on Render free tier: Brevo explicitly supports 2525 as the
+"port 587 is blocked" fallback. Free tier = 300 emails/day.
+
+1. Create a free account at <https://app.brevo.com>.
+2. **Settings → Senders** → *Add a sender* → verify your email address
+   (Brevo emails a confirmation link — open it from that inbox).
+3. **Settings → SMTP & API** → generate an **SMTP key** (shown once).
+4. Render → your service → **Environment** → add → **Save Changes**
    (Render redeploys automatically):
 
-   | Variable | Resend SMTP | Gmail SMTP |
+   | Variable | Brevo (port 2525) | Gmail (paid Render only) |
    |---|---|---|
-   | `SMTP_HOST` | `smtp.resend.com` | `smtp.gmail.com` |
-   | `SMTP_PORT` | `465` | `587` |
-   | `SMTP_USER` | `resend` | `you@gmail.com` |
-   | `SMTP_PASS` | your `re_…` API key | your app password |
-   | `SMTP_FROM` | `ScheduleAI <no-reply@yourdomain.com>` | `ScheduleAI <you@gmail.com>` |
+   | `SMTP_HOST` | `smtp-relay.brevo.com` | `smtp.gmail.com` |
+   | `SMTP_PORT` | `2525` | `587` |
+   | `SMTP_USER` | your SMTP login (shown on the SMTP page) | `you@gmail.com` |
+   | `SMTP_PASS` | your SMTP key | your app password |
+   | `SMTP_FROM` | `ScheduleAI <your verified sender>` | `ScheduleAI <you@gmail.com>` |
 
-4. **Test it:** register a fresh account on the deployed app → the
-   verification email arrives → type the 6-digit code → you're signed in
-   flow continues at the login screen. Locally nothing is configured by
-   default: the code is printed to the server console (and the register
-   screen shows it in a "Running locally — dev shortcut" box).
+   Locally the same values work — test them on `localhost:5000` before
+   pasting them into Render.
 
-Swapping providers later is just editing these env vars — no code changes.
+### Option B — Gmail SMTP (only if Render is upgraded to paid)
+
+The old approach: a Google account + an *App password* (Google Account →
+Security → 2-Step Verification → App passwords), env vars as in the table's
+right column. Blocked on the free tier — see the warning above.
+
+### Option C — Resend
+
+Create an API key at <https://resend.com>; to email arbitrary recipients you
+must verify a domain you own (*Domains → Add Domain* → 3 DNS records), though
+an unverified account can still deliver to your own Resend-account address to
+prove the flow. Note their SMTP relay uses port **465**, which Render free
+also blocks — on the free tier only their HTTPS API would work.
+
+### Test it (any option)
+
+Register a fresh account on the deployed app → the verification email arrives
+→ type the 6-digit code → you're signed in. Locally nothing is configured by
+default: the code is printed to the server console (and the register screen
+shows it in a "Running locally — dev shortcut" box).
+
+Mail is sent **fire-and-forget** with 10s/10s/20s transport timeouts — a slow
+or unreachable mail server never delays `register`/`resend` responses (they
+reply in well under a second; failures are logged server-side), and swapping
+providers later is just editing these env vars — no code changes.
 
 ---
 

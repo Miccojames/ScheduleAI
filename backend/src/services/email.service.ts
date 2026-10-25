@@ -7,10 +7,11 @@ import { env } from "../config/env.js";
 //  2. Never throw into the request path — a mail failure must NOT change the
 //     API response (that would let callers probe which emails exist). We log
 //     the real error server-side and swallow it.
-//  3. The transport is shared by every template. With Resend the settings are
-//     SMTP_HOST=smtp.resend.com, SMTP_PORT=465, SMTP_USER=resend,
-//     SMTP_PASS=<api key>, SMTP_FROM="ScheduleAI <no-reply@yourdomain>" —
-//     swapping providers later is an env change, not a code change.
+//  3. The transport is shared by every template. Swap providers with env vars
+//     only, never code. Example (works on Render's free tier, which blocks
+//     outbound ports 25/465/587): SMTP_HOST=smtp-relay.brevo.com,
+//     SMTP_PORT=2525, SMTP_USER=<smtp login>, SMTP_PASS=<smtp key>,
+//     SMTP_FROM="ScheduleAI <verified sender>".
 
 function transport() {
   return nodemailer.createTransport({
@@ -18,6 +19,14 @@ function transport() {
     port: env.SMTP_PORT ?? 587,
     secure: (env.SMTP_PORT ?? 587) === 465,
     auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+    // Fail FAST. Nodemailer's default connection timeout is 2 MINUTES — when
+    // the SMTP port is unreachable (Render free tier drops outbound 25/465/587)
+    // that made register/resend hang for 120s each. Senders are also fired
+    // without awaiting (see auth.service.ts), so an API response never waits
+    // on the mail server; these timeouts just bound the background attempt.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
 }
 
