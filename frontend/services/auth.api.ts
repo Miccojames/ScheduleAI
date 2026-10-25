@@ -32,9 +32,20 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+export interface VerifyEmailInput {
+  token: string;
+}
+
+export interface ResendVerificationInput {
+  email: string;
+}
+
 export const authApi = {
   register(input: RegisterInput) {
-    return api<{ user: User }>("/api/auth/register", {
+    // `verificationUrl` comes back only from a dev backend with no SMTP — it
+    // mirrors the link printed to the server console so local flows are
+    // clickable. Production never sends it (the link arrives by email).
+    return api<{ user: User; verificationUrl?: string }>("/api/auth/register", {
       method: "POST",
       body: input,
       skipAuthRedirect: true,
@@ -91,6 +102,27 @@ export const authApi = {
     // bouncing the user to /login.
     return api<null>("/api/auth/password", {
       method: "PUT",
+      body: input,
+      skipAuthRedirect: true,
+    });
+  },
+
+  /** Consume the token from the mailed link. 400 = expired/invalid/used. */
+  verifyEmail(input: VerifyEmailInput) {
+    return api<{ user: User }>("/api/auth/verify-email", {
+      method: "POST",
+      body: input,
+      skipAuthRedirect: true,
+    });
+  },
+
+  /**
+   * Always resolves (when the address is valid) — the backend never reveals
+   * whether the account exists or is already verified (no enumeration).
+   */
+  resendVerification(input: ResendVerificationInput) {
+    return api<null>("/api/auth/resend-verification", {
+      method: "POST",
       body: input,
       skipAuthRedirect: true,
     });

@@ -19,12 +19,15 @@ const BASE =
 export class ApiError extends Error {
   status: number;
   errors?: Record<string, string[]>;
+  /** Machine-readable discriminator (e.g. "email_not_verified"). */
+  code?: string;
 
-  constructor(status: number, message: string, errors?: Record<string, string[]>) {
+  constructor(status: number, message: string, errors?: Record<string, string[]>, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errors = errors;
+    this.code = code;
   }
 }
 
@@ -116,7 +119,7 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
       (response.status === 401
         ? "Your session has expired. Please sign in again."
         : "Something went wrong. Please try again.");
-    throw new ApiError(response.status, message, envelope?.errors);
+    throw new ApiError(response.status, message, envelope?.errors, envelope?.code);
   }
 
   return envelope.data;

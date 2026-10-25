@@ -32,11 +32,17 @@ model User {
   // reminder job to compute class start times in the user's local time.
   timezone String?
 
-  schedules           Schedule[]
-  uploads             UploadedSchedule[]
-  passwordResets      PasswordResetToken[]
-  pushSubscriptions   PushSubscription[]
-  notificationLogs    NotificationLog[]
+  // When the email address was confirmed via the link we mailed. NULL = the
+  // account exists but can't sign in yet (email verification pending).
+  // Existing rows are backfilled by the migration so nobody is locked out.
+  emailVerifiedAt DateTime?
+
+  schedules               Schedule[]
+  uploads                 UploadedSchedule[]
+  passwordResets          PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  pushSubscriptions       PushSubscription[]
+  notificationLogs        NotificationLog[]
 }
 
 // Single-use, hashed password-reset tokens (SHA-256 of the raw token).
@@ -47,6 +53,22 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Single-use, hashed email-verification tokens — same shape as the reset
+// tokens, longer TTL (the user has to open their inbox). One live token per
+// account: re-sending deletes any pending rows first.
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

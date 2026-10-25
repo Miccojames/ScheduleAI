@@ -80,9 +80,28 @@ export const changePasswordSchema = z.object({
     .max(128, "Password must be at most 128 characters"),
 });
 
+// ── Email verification ────────────────────────────────────────────────────
+
+export const verifyEmailSchema = z.object({
+  token: z
+    .string({ error: "Verification token is required" })
+    .min(10, "Verification link is invalid"),
+});
+
+export const resendVerificationSchema = z.object({
+  email: z
+    .string({ error: "Email is required" })
+    .trim()
+    .toLowerCase()
+    .email("Please enter a valid email address")
+    .max(254, "Email must be at most 254 characters"),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

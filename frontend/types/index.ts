@@ -161,4 +161,6 @@ export interface ApiEnvelope<T> {
   data: T;
   message?: string;
   errors?: Record<string, string[]>;
+  /** Machine-readable error discriminator (e.g. "email_not_verified"). */
+  code?: string;
 }

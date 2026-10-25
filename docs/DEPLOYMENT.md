@@ -122,11 +122,49 @@ The backend only accepts browser requests from the exact frontend origin
 
 ---
 
+## Step 4b — Email sending with Resend (5 min) ⚠️ needed before real sign-ups
+
+New accounts can't sign in until they click the verification link we email
+them — so with no SMTP configured, sign-ups are created but stuck at
+"verify your email". (Password-reset emails use the same settings.)
+
+1. Create a free account at <https://resend.com> → **API Keys** → create one
+   (it looks like `re_xxxxxxxx`).
+2. **To email real users you must verify a domain you own**: *Domains → Add
+   Domain* → paste the 3 DNS records (DKIM/SPF/DMARC) at your registrar.
+   - **No domain yet?** Two workable options:
+     - **Prove the flow:** leave it unverified — Resend then only delivers to
+       *your own* Resend-account address. Enough to test end to end.
+     - **Ship anyway:** use **Gmail SMTP** instead (right-hand column below) —
+       works for every recipient with just a Google account + an *App
+       password* (Google Account → Security → 2-Step Verification → App
+       passwords). No domain needed.
+3. Render → your service → **Environment** → add → **Save Changes**
+   (Render redeploys automatically):
+
+   | Variable | Resend SMTP | Gmail SMTP |
+   |---|---|---|
+   | `SMTP_HOST` | `smtp.resend.com` | `smtp.gmail.com` |
+   | `SMTP_PORT` | `465` | `587` |
+   | `SMTP_USER` | `resend` | `you@gmail.com` |
+   | `SMTP_PASS` | your `re_…` API key | your app password |
+   | `SMTP_FROM` | `ScheduleAI <no-reply@yourdomain.com>` | `ScheduleAI <you@gmail.com>` |
+
+4. **Test it:** register a fresh account on the deployed app → the
+   verification email arrives → click the link → you can sign in.
+   Locally nothing is configured by default: the link is printed to the
+   server console (and the register screen shows an "open the link" button).
+
+Swapping providers later is just editing these env vars — no code changes.
+
+---
+
 ## Step 5 — Verify in production (3 min)
 
 Open your Vercel URL and run through:
 
-1. **Register** a new account (use a fresh email — production DB is your real Neon DB).
+1. **Register** a new account (use a fresh email — production DB is your real Neon DB)
+   → **check your inbox** and click the verification link → sign in.
 2. **Upload Schedule** → scan a photo → the review page shows your real classes.
 3. **Save Schedule** → check the *Schedules* page.
 4. **Export**: try the `.ics` download and the *Google Calendar* button.
@@ -138,12 +176,15 @@ The same suite used in development works against the deployed API:
 
 ```bash
 cd backend
-npm run smoke -- https://scheduleai-api.onrender.com
+# Against production the API never exposes verification tokens, so hand the
+# suite your direct (non-pooler) Neon URL — it stamps its own test rows:
+SMOKE_DB_URL="postgresql://…" npm run smoke -- https://scheduleai-api.onrender.com
 ```
 
 It creates throwaway `smoke-*@example.com` accounts (delete them afterwards from
-the admin panel / database if you care). Expect `26 passed, 0 failed`.
-Note: the first request may take ~30 s while the free service wakes up.
+the admin panel / database if you care). Expect `37 passed, 0 failed` locally
+(one token-reuse check is skipped in production, where the token never leaves
+the API). Note: the first request may take ~30 s while the free service wakes up.
 
 ---
 

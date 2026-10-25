@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { requireAuth, AUTH_COOKIE, signToken } from "../middleware/auth.middleware.js";
 import { isProduction } from "../config/env.js";
 import * as authService from "../services/auth.service.js";
-import type { LoginInput, RegisterInput, UpdateMeInput, ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput } from "../validators/auth.js";
+import type { LoginInput, RegisterInput, UpdateMeInput, ForgotPasswordInput, ResetPasswordInput, ChangePasswordInput, VerifyEmailInput, ResendVerificationInput } from "../validators/auth.js";
 
 // Cookie options shared by set/clear. SameSite=None+Secure in production so
 // the frontend (different origin on Render) can send it cross-site; Lax in
@@ -37,11 +37,17 @@ function hintCookieOptions() {
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as RegisterInput;
-  const user = await authService.registerUser(body);
-  // No session cookie here: the user signs in from the login screen after
-  // registering (a deliberate flow choice — the account is created, then
-  // the login form is shown with the email pre-filled).
-  sendSuccess(res, { data: { user }, message: "Account created successfully.", status: 201 });
+  const { user, verificationUrl } = await authService.registerUser(body);
+  // No session cookie here: the user verifies their email, then signs in from
+  // the login screen (a deliberate flow choice — the account is created, the
+  // login form is shown with the email pre-filled).
+  // `verificationUrl` exists only in dev (no SMTP): it mirrors the link that
+  // was just printed to the server console so the flow is clickable locally.
+  sendSuccess(res, {
+    data: { user, ...(verificationUrl ? { verificationUrl } : {}) },
+    message: "Account created successfully.",
+    status: 201,
+  });
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
@@ -100,6 +106,31 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   const body = req.body as ChangePasswordInput;
   await authService.changePassword(req.user!.id, body.currentPassword, body.newPassword);
   sendSuccess(res, { data: null, message: "Password changed." });
+});
+
+// ── Email verification ────────────────────────────────────────────────────
+
+export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as VerifyEmailInput;
+  const { user, alreadyVerified } = await authService.verifyEmail(body.token);
+  sendSuccess(res, {
+    data: { user },
+    message: alreadyVerified
+      ? "This email is already verified — you can sign in."
+      : "Email verified. You can sign in now.",
+  });
+});
+
+export const resendVerification = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as ResendVerificationInput;
+  // Always the same 202: unknown addresses, already-verified accounts and
+  // real resends are indistinguishable (no account enumeration).
+  await authService.resendVerification(body.email);
+  sendSuccess(res, {
+    data: null,
+    status: 202,
+    message: "If that address needs verification, a new link is on its way.",
+  });
 });
 
 // Exported so routes can mount requireAuth cleanly.

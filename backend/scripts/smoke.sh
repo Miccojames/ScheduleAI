@@ -8,6 +8,13 @@
 # Usage:  bash scripts/smoke.sh [BASE_URL]
 #         (BASE_URL defaults to http://localhost:5000)
 #
+# Email verification: a freshly registered account can't sign in until the
+# mailed link is consumed. Against a dev backend (SMTP unconfigured) the
+# register response carries `verificationUrl`, so the script follows it. For
+# production runs — where the token never leaves the API — export
+#   SMOKE_DB_URL="<direct postgres url>"
+# and the script stamps the test row in the DB instead.
+#
 # Exits non-zero on any failure; prints PASS/FAIL per step.
 # =============================================================================
 set -u
@@ -60,6 +67,40 @@ with open(sys.argv[1]) as f:
 v = eval(sys.argv[2], {\"d\": d})
 print(v if v is not None else '')
 " "$1" "$2" 2>/dev/null
+}
+
+# verify_user <register-json> <email> <label>
+# Completes email verification for a freshly registered account so the login
+# steps that follow can succeed:
+#   - Dev backends (SMTP unconfigured) return `verificationUrl` in the register
+#     response — the same link they print to the server console.
+#   - Production NEVER returns the token (that would defeat verification), so
+#     set SMOKE_DB_URL to stamp the row directly in the DB instead.
+verify_user() {
+  local reg_json="$1" email="$2" label="$3"
+  local url token http
+  url=$(json_get "$reg_json" "d['data'].get('verificationUrl') or ''")
+  if [ -n "$url" ]; then
+    token="${url##*token=}"
+    SMOKE_LAST_TOKEN="$token"
+    http=$(curl -s -o "$TMPDIR_SMOKE/verify.json" -w "%{http_code}" \
+      -H "Content-Type: application/json" \
+      -d "{\"token\":\"$token\"}" \
+      "$BASE_URL/api/auth/verify-email")
+    [ "$http" = "200" ] \
+      && check "$label: POST /api/auth/verify-email → 200" 0 \
+      || check "$label: POST /api/auth/verify-email → 200 (got $http)" 1
+  elif [ -n "${SMOKE_DB_URL:-}" ]; then
+    if (cd "$SCRIPT_DIR/.." \
+      && echo "UPDATE \"User\" SET \"emailVerifiedAt\" = CURRENT_TIMESTAMP WHERE \"email\" = '$email';" \
+      | npx --no-install prisma db execute --stdin --url "$SMOKE_DB_URL" >/dev/null 2>&1); then
+      check "$label: marked verified via SMOKE_DB_URL" 0
+    else
+      check "$label: marked verified via SMOKE_DB_URL (prisma db execute failed)" 1
+    fi
+  else
+    check "$label: verification possible (no verificationUrl in response — set SMOKE_DB_URL for production runs)" 1
+  fi
 }
 
 echo "=============================================="
@@ -118,6 +159,20 @@ HTTP=$(curl -s -b "$JAR_A" -o "$TMPDIR_SMOKE/me_a.json" -w "%{http_code}" "$BASE
   && check "GET /api/auth/me without a session → 401" 0 \
   || check "GET /api/auth/me without a session → 401 (got $HTTP)" 1
 
+# The account exists but is unverified: login must be refused with the
+# machine-readable code the login screen keys its "resend" banner off.
+HTTP=$(curl -s -o "$TMPDIR_SMOKE/login_unverified.json" -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD\"}" \
+  "$BASE_URL/api/auth/login")
+CODE=$(json_get "$TMPDIR_SMOKE/login_unverified.json" "d.get('code')")
+[ "$HTTP" = "403" ] && [ "$CODE" = "email_not_verified" ] \
+  && check "login BEFORE verification → 403 + email_not_verified" 0 \
+  || check "login BEFORE verification → 403 + email_not_verified (got $HTTP, code=$CODE)" 1
+
+# Verify the address (dev link / production DB stamp), then log in for real.
+verify_user "$TMPDIR_SMOKE/reg_a.json" "$EMAIL_A" "user A"
+
 # Sign in for real now: the cookie jar must carry the session + the hint.
 HTTP=$(curl -s -b "$JAR_A" -c "$JAR_A" -o "$TMPDIR_SMOKE/login_a.json" -w "%{http_code}" \
   -H "Content-Type: application/json" \
@@ -145,6 +200,46 @@ HTTP=$(curl -s -c "$JAR_LOGIN" -o "$TMPDIR_SMOKE/login_a.json" -w "%{http_code}"
   -d "{\"email\":\"$EMAIL_A\",\"password\":\"$PASSWORD\"}" \
   "$BASE_URL/api/auth/login")
 [ "$HTTP" = "200" ] && check "POST /api/auth/login → 200" 0 || check "POST /api/auth/login → 200 (got $HTTP)" 1
+
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Email verification ---"
+
+# Clicking the same link twice must not confuse anyone: an already-consumed
+# token on a verified account reports success ("already verified"), not 400.
+if [ -n "${SMOKE_LAST_TOKEN:-}" ]; then
+  HTTP=$(curl -s -o "$TMPDIR_SMOKE/verify_twice.json" -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -d "{\"token\":\"$SMOKE_LAST_TOKEN\"}" \
+    "$BASE_URL/api/auth/verify-email")
+  MSG=$(json_get "$TMPDIR_SMOKE/verify_twice.json" "d.get('message')")
+  [ "$HTTP" = "200" ] && printf '%s' "$MSG" | grep -qi "already" \
+    && check "verify-email reused token → 200 'already verified'" 0 \
+    || check "verify-email reused token → 200 'already verified' (got $HTTP, msg=$MSG)" 1
+else
+  echo "SKIP  verify-email reused token (production run — token not exposed by the API)"
+fi
+
+# A forged/garbage token must be rejected outright.
+HTTP=$(curl -s -o "$TMPDIR_SMOKE/verify_bad.json" -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d '{"token":"0000000000000000000000000000000000000000000000000000000000000000"}' \
+  "$BASE_URL/api/auth/verify-email")
+[ "$HTTP" = "400" ] && check "verify-email bogus token → 400" 0 || check "verify-email bogus token → 400 (got $HTTP)" 1
+
+# Resend answers identically for unknown and already-verified addresses —
+# always 202, so callers can't probe which emails are registered.
+HTTP=$(curl -s -o "$TMPDIR_SMOKE/resend_unknown.json" -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"nobody-$RUN_ID@example.com\"}" \
+  "$BASE_URL/api/auth/resend-verification")
+[ "$HTTP" = "202" ] && check "resend-verification unknown email → 202" 0 || check "resend-verification unknown email → 202 (got $HTTP)" 1
+
+HTTP=$(curl -s -o "$TMPDIR_SMOKE/resend_verified.json" -w "%{http_code}" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$EMAIL_A\"}" \
+  "$BASE_URL/api/auth/resend-verification")
+[ "$HTTP" = "202" ] && check "resend-verification already-verified → 202" 0 || check "resend-verification already-verified → 202 (got $HTTP)" 1
 
 # ---------------------------------------------------------------------------
 echo ""
@@ -230,6 +325,9 @@ HTTP=$(curl -s -c "$JAR_B" -o "$TMPDIR_SMOKE/reg_b.json" -w "%{http_code}" \
   -d "{\"firstName\":\"Other\",\"lastName\":\"User\",\"email\":\"$EMAIL_B\",\"password\":\"$PASSWORD\"}" \
   "$BASE_URL/api/auth/register")
 [ "$HTTP" = "201" ] && check "register user B → 201" 0 || check "register user B → 201 (got $HTTP)" 1
+
+# B must verify too — an unverified account can't sign in at all.
+verify_user "$TMPDIR_SMOKE/reg_b.json" "$EMAIL_B" "user B"
 
 # Registering no longer signs anyone in — log B in so the isolation checks
 # below run as an AUTHENTICATED other user (404, not 401).

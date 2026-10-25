@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../config/prisma.js";
-import { BadRequestError, ConflictError, UnauthorizedError } from "../utils/errors.js";
+import { env, isProduction } from "../config/env.js";
+import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "../utils/errors.js";
 import { generateRawToken, hashToken } from "../utils/tokens.js";
-import { sendPasswordResetEmail } from "./email.service.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "./email.service.js";
 import type {
   LoginInput,
   RegisterInput,
@@ -11,6 +12,7 @@ import type {
 
 const BCRYPT_ROUNDS = 10;
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // Public user shape returned by the API (never includes passwordHash).
 export interface PublicUser {
@@ -37,7 +39,35 @@ function toPublicUser(user: {
   };
 }
 
-export async function registerUser(input: RegisterInput): Promise<PublicUser> {
+export interface RegisterResult {
+  user: PublicUser;
+  /**
+   * Dev-only escape hatch: the verification link, present exactly when no
+   * mail is sent (SMTP unconfigured outside production) — it also prints to
+   * the server console. Never returned in production: handing the token back
+   * to the caller would let anyone "verify" an address they don't own.
+   */
+  verificationUrl?: string;
+}
+
+/** Mint a single live verification token for the account and mail the link. */
+async function issueVerificationToken(userId: string): Promise<string> {
+  // One live token at a time: a resend invalidates anything outstanding.
+  await prisma.emailVerificationToken.deleteMany({
+    where: { userId, usedAt: null },
+  });
+  const rawToken = generateRawToken();
+  await prisma.emailVerificationToken.create({
+    data: {
+      userId,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
+    },
+  });
+  return rawToken;
+}
+
+export async function registerUser(input: RegisterInput): Promise<RegisterResult> {
   const email = input.email.trim().toLowerCase();
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -52,9 +82,27 @@ export async function registerUser(input: RegisterInput): Promise<PublicUser> {
         lastName: input.lastName.trim(),
         email,
         passwordHash,
+        // NULL until the mailed link is clicked — authenticateUser gates on it.
+        emailVerifiedAt: null,
       },
     });
-    return toPublicUser(user);
+
+    // Verification plumbing must not break registration itself: if minting
+    // the token fails, the account still exists and the user can hit
+    // "resend" from the login screen.
+    let verificationUrl: string | undefined;
+    try {
+      const rawToken = await issueVerificationToken(user.id);
+      await sendVerificationEmail(user.email, user.firstName, rawToken);
+      verificationUrl =
+        !isProduction && !env.SMTP_HOST
+          ? `${env.FRONTEND_URL}/verify-email?token=${rawToken}`
+          : undefined;
+    } catch (err) {
+      console.error(`[auth] Could not issue verification token for ${email}:`, err);
+    }
+
+    return { user: toPublicUser(user), verificationUrl };
   } catch (err: unknown) {
     // Race on the unique email — map to the same friendly 409.
     if ((err as { code?: string })?.code === "P2002") {
@@ -71,7 +119,80 @@ export async function authenticateUser(input: LoginInput): Promise<PublicUser> {
   if (!user) throw new UnauthorizedError("Invalid email or password.");
   const ok = await bcrypt.compare(input.password, user.passwordHash);
   if (!ok) throw new UnauthorizedError("Invalid email or password.");
+  // Password checked FIRST: the verification state is only revealed to
+  // someone who already proved they own the account.
+  if (!user.emailVerifiedAt) {
+    throw new ForbiddenError(
+      "Please verify your email address before signing in.",
+      "email_not_verified",
+    );
+  }
   return toPublicUser(user);
+}
+
+/**
+ * Consume the raw token from the mailed link and stamp the account as
+ * verified. Idempotent on the happy path: clicking a link twice (or landing
+ * on it after it was used) reports success instead of a confusing error.
+ */
+export async function verifyEmail(
+  rawToken: string
+): Promise<{ user: PublicUser; alreadyVerified: boolean }> {
+  const tokenHash = hashToken(rawToken);
+  const record = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
+
+  if (!record) throw new BadRequestError("This verification link is invalid or has expired.");
+
+  if (record.usedAt !== null) {
+    // Already consumed — fine if the account ended up verified, otherwise the
+    // link is stale (e.g. the user was un-verified somehow).
+    if (record.user.emailVerifiedAt) {
+      return { user: toPublicUser(record.user), alreadyVerified: true };
+    }
+    throw new BadRequestError("This verification link is invalid or has expired.");
+  }
+
+  if (record.expiresAt <= new Date()) {
+    throw new BadRequestError("This verification link is invalid or has expired.");
+  }
+
+  const user = await prisma.$transaction(async (tx) => {
+    await tx.emailVerificationToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
+    const updated = await tx.user.update({
+      where: { id: record.userId },
+      data: { emailVerifiedAt: record.user.emailVerifiedAt ?? new Date() },
+    });
+    // Invalidate any other still-pending tokens for this user.
+    await tx.emailVerificationToken.deleteMany({
+      where: { userId: record.userId, usedAt: null },
+    });
+    return updated;
+  });
+
+  return { user: toPublicUser(user), alreadyVerified: false };
+}
+
+/**
+ * Re-send the verification link. ALWAYS resolves with the same generic
+ * behavior: unknown emails, already-verified accounts and real resends are
+ * indistinguishable to the caller (no account enumeration), and mail failures
+ * never change the response.
+ */
+export async function resendVerification(email: string): Promise<void> {
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: normalized, mode: "insensitive" } },
+  });
+  if (!user || user.emailVerifiedAt) return; // silent no-op — same observable behavior
+
+  const rawToken = await issueVerificationToken(user.id);
+  await sendVerificationEmail(user.email, user.firstName, rawToken);
 }
 
 export async function getUserById(id: string): Promise<PublicUser | null> {

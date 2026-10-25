@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin, useMe } from "@/hooks/useAuth";
-import { ApiError } from "@/services/api";
+import { useLogin, useMe, useResendVerification } from "@/hooks/useAuth";
+import { ApiError, apiErrorMessage } from "@/services/api";
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email address."),
@@ -24,20 +24,27 @@ type LoginValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const login = useLogin();
+  const resend = useResendVerification();
   const { data: user, isCheckingSession: checkingSession } = useMe();
   const [formError, setFormError] = useState<string | null>(null);
+  // 403 from /login means "right password, unverified address" — a distinct
+  // state that gets its own banner + resend button instead of a red error.
+  const [unverified, setUnverified] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   });
 
-  // Just registered? The email is handed over so the field is pre-filled.
+  // Just registered (or verified)? The email is handed over pre-filled.
   useEffect(() => {
     try {
       const email = window.sessionStorage.getItem("scheduleai:registeredEmail");
@@ -56,9 +63,16 @@ export default function LoginPage() {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null);
+    setUnverified(false);
+    setResendError(null);
+    setResendSent(false);
     try {
       await login.mutateAsync(values);
     } catch (error) {
+      if (error instanceof ApiError && (error.code === "email_not_verified" || error.status === 403)) {
+        setUnverified(true);
+        return;
+      }
       setFormError(
         error instanceof ApiError
           ? error.message
@@ -66,6 +80,20 @@ export default function LoginPage() {
       );
     }
   });
+
+  const onResend = async () => {
+    setResendError(null);
+    try {
+      await resend.mutateAsync({ email: getValues("email") });
+      setResendSent(true);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 429) {
+        setResendError("Too many attempts. Wait a few minutes, then try again.");
+        return;
+      }
+      setResendError(apiErrorMessage(error, "We couldn't send the email. Try again."));
+    }
+  };
 
   return (
     <Card className="rounded-2xl border-border shadow-sm">
@@ -75,7 +103,46 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
-          {formError ? (
+          {unverified ? (
+            <div
+              role="alert"
+              className="space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-3 text-sm text-amber-700 dark:text-amber-300"
+            >
+              <div className="flex items-start gap-2">
+                <MailCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <div>
+                  <p className="font-medium">Your email hasn&apos;t been verified yet.</p>
+                  <p className="mt-0.5 text-xs">
+                    Open the link we sent when you signed up — or have a fresh one sent here.
+                  </p>
+                </div>
+              </div>
+              {resendError ? (
+                <p className="text-xs text-destructive" role="alert">
+                  {resendError}
+                </p>
+              ) : null}
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="w-full"
+                onClick={onResend}
+                disabled={resend.isPending}
+              >
+                {resend.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    Sending…
+                  </>
+                ) : resendSent ? (
+                  "Email sent again ✓"
+                ) : (
+                  "Resend verification email"
+                )}
+              </Button>
+            </div>
+          ) : formError ? (
             <div
               role="alert"
               className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"

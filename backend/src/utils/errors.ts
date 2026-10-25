@@ -4,12 +4,22 @@
 export class AppError extends Error {
   public readonly status: number;
   public readonly errors?: Record<string, string[]>;
+  // Machine-readable discriminator (e.g. "email_not_verified") so clients can
+  // branch on *why* an error happened without string-matching the human
+  // message — messages get reworded, codes don't.
+  public readonly code?: string;
 
-  constructor(status: number, message: string, errors?: Record<string, string[]>) {
+  constructor(
+    status: number,
+    message: string,
+    errors?: Record<string, string[]>,
+    code?: string,
+  ) {
     super(message);
     this.name = "AppError";
     this.status = status;
     this.errors = errors;
+    this.code = code;
   }
 }
 
@@ -28,8 +38,8 @@ export class UnauthorizedError extends AppError {
 }
 
 export class ForbiddenError extends AppError {
-  constructor(message = "Forbidden") {
-    super(403, message);
+  constructor(message = "Forbidden", code?: string) {
+    super(403, message, undefined, code);
     this.name = "ForbiddenError";
   }
 }

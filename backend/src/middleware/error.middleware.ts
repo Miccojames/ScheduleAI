@@ -28,7 +28,12 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   }
 
   if (err instanceof AppError) {
-    sendError(res, { status: err.status, message: err.message, errors: err.errors });
+    sendError(res, {
+      status: err.status,
+      message: err.message,
+      errors: err.errors,
+      code: err.code,
+    });
     return;
   }
 

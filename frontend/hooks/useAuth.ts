@@ -64,22 +64,47 @@ export function useLogin() {
 
 export function useRegister() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation({
     mutationFn: (input: RegisterInput) => authApi.register(input),
-    onSuccess: async (_data, variables) => {
-      // Registration no longer signs you in — hand the email to the login
-      // screen (pre-filled) so the user signs in explicitly.
+    onSuccess: async () => {
+      // No redirect here — the register screen switches to its "check your
+      // email" state (which owns the hand-off to the login screen once the
+      // address is verified).
+      await queryClient.invalidateQueries({ queryKey: authKeys.me });
+      toast.success("Account created — check your email to verify it.");
+    },
+  });
+}
+
+/**
+ * Consumes the token from the mailed verification link. The page renders its
+ * own success/error states, so this hook only redirects on success (to the
+ * login screen, with the address pre-filled).
+ */
+export function useVerifyEmail() {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: (token: string) => authApi.verifyEmail({ token }),
+    onSuccess: async (data) => {
       try {
-        window.sessionStorage.setItem("scheduleai:registeredEmail", variables.email);
+        window.sessionStorage.setItem("scheduleai:registeredEmail", data.user.email);
       } catch {
-        // Private mode / storage disabled — the login form just starts empty.
+        // Storage unavailable — the login form just starts empty.
       }
       await queryClient.invalidateQueries({ queryKey: authKeys.me });
-      toast.success("Account created — sign in to continue.");
+      toast.success("Email verified — sign in to continue.");
       router.push("/login");
     },
+  });
+}
+
+/** Deliberately toast-free: the caller renders its own sent/error state. */
+export function useResendVerification() {
+  return useMutation({
+    mutationFn: (input: { email: string }) => authApi.resendVerification(input),
   });
 }
 

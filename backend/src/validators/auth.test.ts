@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registerSchema, loginSchema } from "./auth.js";
+import { registerSchema, loginSchema, verifyEmailSchema, resendVerificationSchema } from "./auth.js";
 
 // Core register/login cases only — required fields, obvious invalid inputs,
 // and the documented normalization transforms.
@@ -100,5 +100,43 @@ describe("loginSchema", () => {
   it("rejects a missing or invalid email", () => {
     expect(loginSchema.safeParse({ password: "pw" }).success).toBe(false);
     expect(loginSchema.safeParse({ email: "nope", password: "pw" }).success).toBe(false);
+  });
+});
+
+describe("verifyEmailSchema", () => {
+  const token = "a".repeat(64); // raw tokens are 32 random bytes → 64 hex chars
+
+  it("accepts a well-formed token", () => {
+    expect(verifyEmailSchema.safeParse({ token }).success).toBe(true);
+  });
+
+  it("rejects a missing token", () => {
+    expect(verifyEmailSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("rejects a truncated token (link tampering)", () => {
+    expect(verifyEmailSchema.safeParse({ token: "abc123" }).success).toBe(false);
+  });
+
+  it("rejects an empty token", () => {
+    expect(verifyEmailSchema.safeParse({ token: "" }).success).toBe(false);
+  });
+});
+
+describe("resendVerificationSchema", () => {
+  it("accepts and normalizes an email", () => {
+    const result = resendVerificationSchema.safeParse({ email: "  Ada@Example.COM " });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.email).toBe("ada@example.com");
+  });
+
+  it("rejects a missing or malformed email", () => {
+    expect(resendVerificationSchema.safeParse({}).success).toBe(false);
+    expect(resendVerificationSchema.safeParse({ email: "nope" }).success).toBe(false);
+  });
+
+  it("rejects an over-long email", () => {
+    const long = `${"a".repeat(250)}@example.com`;
+    expect(resendVerificationSchema.safeParse({ email: long }).success).toBe(false);
   });
 });

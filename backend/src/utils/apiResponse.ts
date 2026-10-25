@@ -10,6 +10,7 @@ interface ErrorOptions {
   status: number;
   message: string;
   errors?: Record<string, string[]>;
+  code?: string;
 }
 
 // The contract's response shapes — keep these in ONE place so every
@@ -22,10 +23,14 @@ export function sendSuccess(res: Response, { data, message, status = 200 }: Succ
   });
 }
 
-export function sendError(res: Response, { status, message, errors }: ErrorOptions): void {
+export function sendError(
+  res: Response,
+  { status, message, errors, code }: ErrorOptions,
+): void {
   res.status(status).json({
     success: false,
     message,
     ...(errors ? { errors } : {}),
+    ...(code ? { code } : {}),
   });
 }
